@@ -3,7 +3,6 @@
 import datetime
 from typing import Any
 
-import pytest
 from arctrl import ArcAssay, ArcInvestigation, ArcStudy  # type: ignore[import-untyped]
 
 from middleware.sql_to_arc.mapper import map_assay, map_investigation, map_study

@@ -1,23 +1,15 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
-name = "middleware.inspire_to_arc"
+name = "inspire_to_arc"
 version = "0.1.0"
 description = "Harvester for INSPIRE metadata to ARC conversion"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "OWSLib>=0.31.0",
-    "lxml>=5.0.0",
+    "owslib>=0.31.0",
     "arctrl>=1.0.0",
     "pydantic>=2.0.0",
-    "middleware.api_client",
+    "api_client",
 ]
 
-[project.scripts]
-inspire-to-arc = "middleware.inspire_to_arc.main:main"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/middleware"]
+[tool.uv.sources]
+api_client = { workspace = true }
