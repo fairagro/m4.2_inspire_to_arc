@@ -42,8 +42,9 @@ class InspireMapper:
     def map_person(self, contact: Contact) -> Person:
         """Map contact object to Person with full CI_ResponsibleParty details."""
         # Name splitting - prefer full name over just last name
-        name_str = contact.name or "Unknown"
-        name_parts = name_str.split(" ")
+        if not contact.name:
+            return None  # Skip contacts without name
+        name_parts = contact.name.split(" ")
         last_name = name_parts[-1]
         first_name = " ".join(name_parts[:-1]) if len(name_parts) > 1 else ""
 
@@ -80,8 +81,10 @@ class InspireMapper:
         if contact.position:
             comments.append(f"Position: {contact.position}")
         if contact.online_resource_url:
-            resource_desc = contact.online_resource_name or "Online Resource"
-            comments.append(f"{resource_desc}: {contact.online_resource_url}")
+            if contact.online_resource_name:
+                comments.append(f"{contact.online_resource_name}: {contact.online_resource_url}")
+            else:
+                comments.append(contact.online_resource_url)
         
         if comments:
             person.Comments.extend([OntologyAnnotation(name=c) for c in comments])
@@ -108,16 +111,18 @@ class InspireMapper:
         
         for contact in all_contacts:
             person = self.map_person(contact)
-            inv.Contacts.append(person)
+            if person:  # Skip contacts without name
+                inv.Contacts.append(person)
 
         # Publications from resource_identifiers (DOI, ISBN, etc.)
         for res_id in record.resource_identifiers:
             # Only add as Publication if it looks like a DOI or ISBN
-            if res_id.code and (res_id.code.startswith("10.") or "doi" in res_id.code.lower() or "isbn" in str(res_id.codespace or "").lower()):
+            codespace_str = str(res_id.codespace) if res_id.codespace else ""
+            if res_id.code and (res_id.code.startswith("10.") or "doi" in res_id.code.lower() or "isbn" in codespace_str.lower()):
                 pub = OntologyAnnotation(
                     name=res_id.code,
-                    tan=res_id.url or "",
-                    tsr=res_id.codespace or ""
+                    tan=res_id.url if res_id.url else None,
+                    tsr=res_id.codespace if res_id.codespace else None
                 )
                 inv.Publications.append(pub)
 
@@ -361,9 +366,9 @@ class InspireMapper:
         # TechnologyPlatform from Reference Systems (CRS)
         if record.reference_systems:
             for ref_sys in record.reference_systems:
-                platform_name = ref_sys.code or "Unknown CRS"
-                assay.TechnologyPlatform = platform_name
-                break  # Use first reference system
+                if ref_sys.code:
+                    assay.TechnologyPlatform = ref_sys.code
+                    break  # Use first reference system with code
 
         # Comments: Graphic Overviews and Online Resources
         comments = []
@@ -372,8 +377,10 @@ class InspireMapper:
                 comments.append(f"Preview: {url}")
         if record.online_resources:
             for res in record.online_resources:
-                res_desc = res.name or "Download"
-                comments.append(f"{res_desc}: {res.url}")
+                if res.name:
+                    comments.append(f"{res.name}: {res.url}")
+                else:
+                    comments.append(res.url)
         
         if comments:
             for comment in comments:
