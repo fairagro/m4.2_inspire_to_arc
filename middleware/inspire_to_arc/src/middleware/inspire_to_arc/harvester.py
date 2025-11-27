@@ -2,8 +2,7 @@
 
 import logging
 from collections.abc import Iterator
-from dataclasses import dataclass, field
-from typing import cast
+from typing import Annotated, cast
 
 from owslib.csw import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
@@ -13,21 +12,32 @@ from .errors import SemanticError
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class InspireRecord:  # pylint: disable=too-many-instance-attributes
+from pydantic import BaseModel, Field
+
+class Contact(BaseModel):
+    """Contact information."""
+
+    name: str | None = None
+    organization: str | None = None
+    email: str | None = None
+    role: str | None = None
+    type: str | None = None  # "metadata" or "resource"
+
+
+class InspireRecord(BaseModel):
     """Intermediate representation of an INSPIRE metadata record."""
 
     identifier: str
     title: str
-    abstract: str | None
-    date_stamp: str | None
-    keywords: list[str] = field(default_factory=list)
-    topic_categories: list[str] = field(default_factory=list)
-    contacts: list[dict] = field(default_factory=list)
+    abstract: str | None = None
+    date_stamp: str | None = None
+    keywords: Annotated[list[str], Field(default_factory=list)]
+    topic_categories: Annotated[list[str], Field(default_factory=list)]
+    contacts: Annotated[list[Contact], Field(default_factory=list)]
     lineage: str | None = None
     spatial_extent: list[float] | None = None  # [minx, miny, maxx, maxy]
     temporal_extent: tuple[str | None, str | None] | None = None  # (start, end)
-    constraints: list[str] = field(default_factory=list)
+    constraints: Annotated[list[str], Field(default_factory=list)]
     # Add more fields as needed
 
 
@@ -118,10 +128,10 @@ class CSWClient:
         return InspireRecord(
             identifier=identifier,
             title=self._extract_title(identification),
-            abstract=self._extract_identication_str("abstract", identification),
+            abstract=self._extract_identification_str("abstract", identification),
             date_stamp=iso.datestamp,
-            keywords=self.__extract_identification_list("keywords", identification),
-            topic_categories=self.__extract_identification_list("topiccategory", identification),
+            keywords=self._extract_identification_list("keywords", identification),
+            topic_categories=self._extract_identification_list("topiccategory", identification),
             contacts=self._extract_contacts(iso),
             lineage=self._extract_lineage(iso),
             spatial_extent=self._extract_spatial_extent(iso),
@@ -145,13 +155,13 @@ class CSWClient:
             raise SemanticError("Record title is not a string.")
         return identification.title
 
-    def _extract_identication_str(self, item: str, identification: MD_DataIdentification | None) -> str | None:
+    def _extract_identification_str(self, item: str, identification: MD_DataIdentification | None) -> str | None:
         """Extract a string attribute from ISO record."""
         if identification is None:
             return None
         return getattr(identification, item, None)
 
-    def __extract_identification_list(self, item: str, identification: MD_DataIdentification | None) -> list[str]:
+    def _extract_identification_list(self, item: str, identification: MD_DataIdentification | None) -> list[str]:
         """Extract a list attribute from ISO record."""
         result: list[str] = []
         if identification is None:
@@ -164,7 +174,7 @@ class CSWClient:
                 result.append(attr)
         return result
 
-    def _extract_contacts(self, iso: MD_Metadata) -> list[dict]:
+    def _extract_contacts(self, iso: MD_Metadata) -> list[Contact]:
         """Extract contacts from ISO record."""
         contacts = []
         if iso.contact:
@@ -174,16 +184,16 @@ class CSWClient:
             contacts.extend(self._format_contacts(identification.contact, "resource"))
         return contacts
 
-    def _format_contacts(self, contact_list: list, contact_type: str) -> list[dict]:
+    def _format_contacts(self, contact_list: list, contact_type: str) -> list[Contact]:
         """Format contact list."""
         return [
-            {
-                "name": c.name,
-                "organization": c.organization,
-                "email": c.email,
-                "role": c.role,
-                "type": contact_type,
-            }
+            Contact(
+                name=c.name,
+                organization=c.organization,
+                email=c.email,
+                role=c.role,
+                type=contact_type,
+            )
             for c in contact_list
         ]
 

@@ -16,7 +16,7 @@ from arctrl import (  # type: ignore[import-untyped]
     Person,
 )
 
-from .harvester import InspireRecord
+from .harvester import Contact, InspireRecord
 
 
 class InspireMapper:
@@ -58,8 +58,8 @@ class InspireMapper:
         )
 
         # Contacts
-        for contact_dict in record.contacts:
-            person = self.map_person(contact_dict)
+        for contact in record.contacts:
+            person = self.map_person(contact)
             inv.Contacts.append(person)
 
         return inv
@@ -108,23 +108,23 @@ class InspireMapper:
 
         return assay
 
-    def map_person(self, contact_dict: dict) -> Person:
-        """Map contact dictionary to Person."""
+    def map_person(self, contact: Contact) -> Person:
+        """Map contact object to Person."""
         # Name splitting
-        name_parts = (contact_dict.get("name") or "Unknown").split(" ")
+        name_parts = (contact.name or "Unknown").split(" ")
         last_name = name_parts[-1]
         first_name = " ".join(name_parts[:-1]) if len(name_parts) > 1 else ""
 
         person = Person.create(
             last_name=last_name,
             first_name=first_name,
-            email=contact_dict.get("email"),
-            affiliation=contact_dict.get("organization"),
+            email=contact.email,
+            affiliation=contact.organization,
             address=None,
         )
 
         # Role
-        role = contact_dict.get("role")
+        role = contact.role
         if role:
             person.Roles.append(OntologyAnnotation(name=role))
 
