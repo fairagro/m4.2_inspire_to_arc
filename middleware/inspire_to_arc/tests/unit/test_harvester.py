@@ -19,7 +19,7 @@ def test_connect(mock_csw_cls: MagicMock) -> None:
     client = CSWClient("http://example.com/csw")
     client.connect()
     mock_csw_cls.assert_called_with("http://example.com/csw", timeout=30)
-    assert client._csw is not None
+    assert client._csw is not None  # pylint: disable=protected-access
 
 
 def test_get_records(mock_csw_cls: MagicMock) -> None:
