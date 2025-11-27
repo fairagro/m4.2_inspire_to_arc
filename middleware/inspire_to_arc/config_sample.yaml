@@ -1,0 +1,9 @@
+csw_url: "https://gdk.gdi-de.org/gdi-de/srv/ger/csw"
+rdi: "inspire-import"
+batch_size: 5
+query: "type='dataset'"
+api_client:
+  api_url: "http://localhost:8000"
+  client_cert_path: "/path/to/cert.pem"
+  client_key_path: "/path/to/key.pem"
+  verify_ssl: false

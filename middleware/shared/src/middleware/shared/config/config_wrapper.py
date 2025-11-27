@@ -15,8 +15,8 @@ import yaml
 type KeyType = str | int
 type DictType = dict[str, "ValueType"]
 type ListType = list["ValueType"]
-type ValueType = DictType | ListType | str
-type WrapType = "ConfigWrapper | str | None"
+type ValueType = DictType | ListType | str | int | float | bool | None
+type WrapType = "ConfigWrapper | str | int | float | bool | None"
 
 
 class ConfigWrapper:
@@ -114,7 +114,7 @@ class ConfigWrapper:
             return {k: cls._unwrap(v) for k, v in wrapper.items()}
         if isinstance(wrapper, ConfigWrapperList):
             return [cls._unwrap(wrapper[i]) for i in range(len(wrapper))]
-        if isinstance(wrapper, str):
+        if isinstance(wrapper, str | int | float | bool) or wrapper is None:
             return wrapper
         raise TypeError(f"Cannot unwrap element of type '{type(wrapper)}'")
 

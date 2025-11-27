@@ -9,8 +9,9 @@ import asyncio
 import logging
 from pathlib import Path
 
-from middleware.api_client import ApiClient, Config as ApiConfig
+from middleware.api_client import ApiClient
 
+from .config import Config
 from .harvester import CSWClient
 from .mapper import InspireMapper
 
@@ -19,29 +20,28 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
-async def run_harvest(csw_url: str, api_config_path: Path, limit: int = 10) -> None:
+async def run_harvest(config: Config) -> None:
     """Run the harvest process."""
     # 1. Setup CSW Client
-    logger.info("Connecting to CSW at %s...", csw_url)
-    csw_client = CSWClient(csw_url)
+    logger.info("Connecting to CSW at %s...", config.csw_url)
+    csw_client = CSWClient(config.csw_url)
 
     # 2. Setup Mapper
     mapper = InspireMapper()
 
-    # 3. Setup API Client
-    try:
-        api_config = ApiConfig.from_yaml_file(api_config_path)
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to load API config: %s", e)
-        return
-
-    # 4. Harvest and Process
-    async with ApiClient(api_config) as client:
+    # 3. Harvest and Process
+    async with ApiClient(config.api_client) as client:
         batch = []
         count = 0
 
         try:
-            for record in csw_client.get_records(max_records=limit):
+            # Pass query if configured
+            records_iter = csw_client.get_records(
+                _query=config.query,
+                max_records=1000000 # Use a large number or implement proper pagination loop in main
+            )
+            
+            for record in records_iter:
                 logger.info("Processing record: %s", record.identifier)
 
                 try:
@@ -50,10 +50,10 @@ async def run_harvest(csw_url: str, api_config_path: Path, limit: int = 10) -> N
                     batch.append(arc)
 
                     # Batch upload
-                    if len(batch) >= 10:
+                    if len(batch) >= config.batch_size:
                         logger.info("Uploading batch of %d ARCs...", len(batch))
                         await client.create_or_update_arcs(
-                            rdi="inspire-import",  # Could be configurable
+                            rdi=config.rdi,
                             arcs=batch,
                         )
                         batch = []
@@ -67,7 +67,7 @@ async def run_harvest(csw_url: str, api_config_path: Path, limit: int = 10) -> N
             # Upload remaining
             if batch:
                 logger.info("Uploading final batch of %d ARCs...", len(batch))
-                await client.create_or_update_arcs(rdi="inspire-import", arcs=batch)
+                await client.create_or_update_arcs(rdi=config.rdi, arcs=batch)
 
             logger.info("Harvest complete. Processed %d records.", count)
 
@@ -82,13 +82,19 @@ def main() -> None:
     the asynchronous harvest routine.
     """
     parser = argparse.ArgumentParser(description="INSPIRE to ARC Harvester")
-    parser.add_argument("--csw-url", required=True, help="URL of the CSW endpoint")
-    parser.add_argument("--api-config", required=True, help="Path to API Client config.yaml")
-    parser.add_argument("--limit", type=int, default=10, help="Maximum records to harvest")
+    parser.add_argument(
+        "-c", "--config", required=True, type=Path, help="Path to configuration file (YAML)"
+    )
 
     args = parser.parse_args()
 
-    asyncio.run(run_harvest(args.csw_url, Path(args.api_config), args.limit))
+    try:
+        config = Config.from_yaml_file(args.config)
+    except (FileNotFoundError, ValueError) as e:
+        logger.error("Failed to load configuration: %s", e)
+        return
+
+    asyncio.run(run_harvest(config))
 
 
 if __name__ == "__main__":
