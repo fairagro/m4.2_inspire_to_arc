@@ -1,18 +1,17 @@
 """CSW Harvester for INSPIRE metadata records."""
 
+import contextlib
 import logging
 from collections.abc import Iterator
 from typing import Annotated, cast
 
 from owslib.csw import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
+from pydantic import BaseModel, Field
 
 from .errors import SemanticError
 
 logger = logging.getLogger(__name__)
-
-
-from pydantic import BaseModel, Field
 
 
 class ResourceIdentifier(BaseModel):
@@ -264,7 +263,7 @@ class CSWClient:
         # Ensure identifier is always a string, fallback to "unknown" if None or not a string
         identifier = iso.identifier if isinstance(iso.identifier, str) and iso.identifier else "unknown"
         identification = self._extract_identification(iso)
-        
+
         return InspireRecord(
             # Core identification (existing fields)
             identifier=identifier,
@@ -278,7 +277,6 @@ class CSWClient:
             spatial_extent=self._extract_spatial_extent(iso),
             temporal_extent=self._extract_temporal_extent(iso),
             constraints=self._extract_constraints(iso),
-            
             # Metadata-level fields (new)
             parent_identifier=getattr(iso, "parentidentifier", None),
             language=getattr(iso, "language", None) or getattr(iso, "languagecode", None),
@@ -287,7 +285,6 @@ class CSWClient:
             metadata_standard_name=getattr(iso, "stdname", None),
             metadata_standard_version=getattr(iso, "stdver", None),
             dataset_uri=getattr(iso, "dataseturi", None),
-            
             # Identification - Core (new)
             alternate_title=self._extract_identification_str("alternatetitle", identification),
             resource_identifiers=self._extract_resource_identifiers(identification),
@@ -296,37 +293,29 @@ class CSWClient:
             status=self._extract_identification_str("status", identification),
             resource_language=self._extract_resource_language(identification),
             graphic_overviews=self._extract_graphic_overviews(identification),
-            
             # Identification - Dates (new)
             dates=self._extract_dates(identification),
-            
             # Identification - Resolution (new)
             spatial_resolution_denominators=self._extract_resolution_denominators(identification),
             spatial_resolution_distances=self._extract_resolution_distances(identification),
-            
             # Identification - Contacts by role (new)
             creators=self._extract_contacts_by_role(identification, "originator"),
             publishers=self._extract_contacts_by_role(identification, "publisher"),
             contributors=self._extract_contacts_by_role(identification, "author"),
-            
             # Constraints (detailed, new)
             access_constraints=self._extract_access_constraints(identification),
             use_constraints=self._extract_use_constraints(identification),
             classification=self._extract_classification(identification),
             other_constraints=self._extract_other_constraints(identification),
             other_constraints_url=self._extract_other_constraints_url(identification),
-            
             # Distribution (new)
             distribution_formats=self._extract_distribution_formats(iso),
             online_resources=self._extract_online_resources(iso),
-            
             # Data Quality (new)
             conformance_results=self._extract_conformance_results(iso),
             lineage_url=self._extract_lineage_url(iso),
-            
             # Reference System (new)
             reference_systems=self._extract_reference_systems(iso),
-            
             # Supplemental (new)
             supplemental_information=self._extract_identification_str("supplementalinformation", identification),
         )
@@ -448,6 +437,7 @@ class CSWClient:
                 elif hasattr(resource_constraints, "use_limitation") and resource_constraints.use_limitation:
                     constraints.extend(resource_constraints.use_limitation)
         return constraints
+
     # === New Extraction Methods for Extended INSPIRE Fields ===
 
     def _extract_resource_identifiers(self, identification: MD_DataIdentification | None) -> list[ResourceIdentifier]:
@@ -455,22 +445,20 @@ class CSWClient:
         identifiers: list[ResourceIdentifier] = []
         if identification is None:
             return identifiers
-        
+
         # uricode and uricodespace are lists in OWSLib
         uricode_list = getattr(identification, "uricode", [])
         uricodespace_list = getattr(identification, "uricodespace", [])
-        
+
         # Zip them together, padding shorter list with None
         max_len = max(len(uricode_list), len(uricodespace_list))
         for i in range(max_len):
             code = uricode_list[i] if i < len(uricode_list) else None
             codespace = uricodespace_list[i] if i < len(uricodespace_list) else None
             if code:
-                identifiers.append(ResourceIdentifier(
-                    code=code,
-                    codespace=codespace,
-                    url=code if code.startswith("http") else None
-                ))
+                identifiers.append(
+                    ResourceIdentifier(code=code, codespace=codespace, url=code if code.startswith("http") else None)
+                )
         return identifiers
 
     def _extract_dates(self, identification: MD_DataIdentification | None) -> list[InspireDate]:
@@ -478,14 +466,11 @@ class CSWClient:
         dates: list[InspireDate] = []
         if identification is None:
             return dates
-        
+
         ci_dates = getattr(identification, "date", [])
         for ci_date in ci_dates:
             if hasattr(ci_date, "date") and hasattr(ci_date, "type"):
-                dates.append(InspireDate(
-                    date=ci_date.date,
-                    datetype=ci_date.type
-                ))
+                dates.append(InspireDate(date=ci_date.date, datetype=ci_date.type))
         return dates
 
     def _extract_resource_language(self, identification: MD_DataIdentification | None) -> list[str]:
@@ -493,7 +478,7 @@ class CSWClient:
         langs: list[str] = []
         if identification is None:
             return langs
-        
+
         # OWSLib has both resourcelanguage and resourcelanguagecode
         langs.extend(getattr(identification, "resourcelanguagecode", []))
         langs.extend(getattr(identification, "resourcelanguage", []))
@@ -518,21 +503,16 @@ class CSWClient:
         """Extract spatial resolution as distances with units."""
         if identification is None:
             return []
-        
+
         distances = []
         distance_vals = getattr(identification, "distance", [])
         uom_vals = getattr(identification, "uom", [])
-        
+
         for i, dist in enumerate(distance_vals):
             uom = uom_vals[i] if i < len(uom_vals) else "m"
             if dist:
-                try:
-                    distances.append(SpatialResolutionDistance(
-                        value=float(dist),
-                        uom=uom or "m"
-                    ))
-                except (ValueError, TypeError):
-                    pass
+                with contextlib.suppress(ValueError, TypeError):
+                    distances.append(SpatialResolutionDistance(value=float(dist), uom=uom or "m"))
         return distances
 
     def _extract_contacts_by_role(self, identification: MD_DataIdentification | None, role_name: str) -> list[Contact]:
@@ -540,7 +520,7 @@ class CSWClient:
         contacts: list[Contact] = []
         if identification is None:
             return contacts
-        
+
         # Get role-specific lists from OWSLib
         if role_name == "originator":
             contact_list = getattr(identification, "creator", [])
@@ -550,7 +530,7 @@ class CSWClient:
             contact_list = getattr(identification, "contributor", [])
         else:
             return contacts
-        
+
         return self._format_contacts(contact_list, "resource")
 
     def _extract_access_constraints(self, identification: MD_DataIdentification | None) -> list[str]:
@@ -589,16 +569,18 @@ class CSWClient:
         dist = getattr(iso, "distribution", None)
         if dist is None:
             return formats
-        
+
         if hasattr(dist, "format") and dist.format:
-            formats.append(DistributionFormat(
-                name=dist.format,
-                version=getattr(dist, "version", None),
-                specification=getattr(dist, "specification", None),
-                name_url=getattr(dist, "format_url", None),
-                version_url=getattr(dist, "version_url", None),
-                specification_url=getattr(dist, "specification_url", None),
-            ))
+            formats.append(
+                DistributionFormat(
+                    name=dist.format,
+                    version=getattr(dist, "version", None),
+                    specification=getattr(dist, "specification", None),
+                    name_url=getattr(dist, "format_url", None),
+                    version_url=getattr(dist, "version_url", None),
+                    specification_url=getattr(dist, "specification_url", None),
+                )
+            )
         return formats
 
     def _extract_online_resources(self, iso: MD_Metadata) -> list[OnlineResource]:
@@ -607,20 +589,22 @@ class CSWClient:
         dist = getattr(iso, "distribution", None)
         if dist is None:
             return resources
-        
+
         online_list = getattr(dist, "online", [])
         for ol in online_list:
             if hasattr(ol, "url") and ol.url:
-                resources.append(OnlineResource(
-                    url=ol.url,
-                    protocol=getattr(ol, "protocol", None),
-                    protocol_url=getattr(ol, "protocol_url", None),
-                    name=getattr(ol, "name", None),
-                    name_url=getattr(ol, "name_url", None),
-                    description=getattr(ol, "description", None),
-                    description_url=getattr(ol, "description_url", None),
-                    function=getattr(ol, "function", None),
-                ))
+                resources.append(
+                    OnlineResource(
+                        url=ol.url,
+                        protocol=getattr(ol, "protocol", None),
+                        protocol_url=getattr(ol, "protocol_url", None),
+                        name=getattr(ol, "name", None),
+                        name_url=getattr(ol, "name_url", None),
+                        description=getattr(ol, "description", None),
+                        description_url=getattr(ol, "description_url", None),
+                        function=getattr(ol, "function", None),
+                    )
+                )
         return resources
 
     def _extract_conformance_results(self, iso: MD_Metadata) -> list[ConformanceResult]:
@@ -629,24 +613,26 @@ class CSWClient:
         dq = getattr(iso, "dataquality", None)
         if dq is None:
             return results
-        
+
         titles = getattr(dq, "conformancetitle", [])
         title_urls = getattr(dq, "conformancetitle_url", [])
         dates = getattr(dq, "conformancedate", [])
         datetypes = getattr(dq, "conformancedatetype", [])
         degrees = getattr(dq, "conformancedegree", [])
-        
+
         max_len = max(len(titles), len(dates), len(degrees)) if titles or dates or degrees else 0
         for i in range(max_len):
             title = titles[i] if i < len(titles) else None
             if title:
-                results.append(ConformanceResult(
-                    specification_title=title,
-                    specification_title_url=title_urls[i] if i < len(title_urls) else None,
-                    specification_date=dates[i] if i < len(dates) else None,
-                    specification_datetype=datetypes[i] if i < len(datetypes) else None,
-                    degree=degrees[i] if i < len(degrees) else None,
-                ))
+                results.append(
+                    ConformanceResult(
+                        specification_title=title,
+                        specification_title_url=title_urls[i] if i < len(title_urls) else None,
+                        specification_date=dates[i] if i < len(dates) else None,
+                        specification_datetype=datetypes[i] if i < len(datetypes) else None,
+                        degree=degrees[i] if i < len(degrees) else None,
+                    )
+                )
         return results
 
     def _extract_lineage_url(self, iso: MD_Metadata) -> str | None:
@@ -666,14 +652,16 @@ class CSWClient:
         rs = getattr(iso, "referencesystem", None)
         if rs is None:
             return systems
-        
+
         if hasattr(rs, "code") and rs.code:
-            systems.append(ReferenceSystem(
-                code=rs.code,
-                code_url=getattr(rs, "code_url", None),
-                codespace=getattr(rs, "codeSpace", None),
-                codespace_url=getattr(rs, "codeSpace_url", None),
-                version=getattr(rs, "version", None),
-                version_url=getattr(rs, "version_url", None),
-            ))
+            systems.append(
+                ReferenceSystem(
+                    code=rs.code,
+                    code_url=getattr(rs, "code_url", None),
+                    codespace=getattr(rs, "codeSpace", None),
+                    codespace_url=getattr(rs, "codeSpace_url", None),
+                    version=getattr(rs, "version", None),
+                    version_url=getattr(rs, "version_url", None),
+                )
+            )
         return systems

@@ -10,10 +10,9 @@ import logging
 from pathlib import Path
 
 from middleware.api_client import ApiClient
-
-from .config import Config
-from .harvester import CSWClient
-from .mapper import InspireMapper
+from middleware.inspire_to_arc.config import Config
+from middleware.inspire_to_arc.harvester import CSWClient
+from middleware.inspire_to_arc.mapper import InspireMapper
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -38,9 +37,9 @@ async def run_harvest(config: Config) -> None:
             # Pass query if configured
             records_iter = csw_client.get_records(
                 _query=config.query,
-                max_records=1000000 # Use a large number or implement proper pagination loop in main
+                max_records=1000000,  # Use a large number or implement proper pagination loop in main
             )
-            
+
             for record in records_iter:
                 logger.info("Processing record: %s", record.identifier)
 
@@ -82,9 +81,7 @@ def main() -> None:
     the asynchronous harvest routine.
     """
     parser = argparse.ArgumentParser(description="INSPIRE to ARC Harvester")
-    parser.add_argument(
-        "-c", "--config", required=True, type=Path, help="Path to configuration file (YAML)"
-    )
+    parser.add_argument("-c", "--config", required=True, type=Path, help="Path to configuration file (YAML)")
 
     args = parser.parse_args()
 
