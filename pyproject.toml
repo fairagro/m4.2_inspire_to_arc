@@ -196,3 +196,6 @@ pythonpath = [
     "middleware/sql_to_arc/src",
     "middleware/inspire_to_arc/src",
 ]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]

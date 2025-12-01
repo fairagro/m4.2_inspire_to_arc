@@ -207,14 +207,14 @@ class CSWClient:
             raise
 
     def get_records(
-        self, _query: str | None = None, xml_request: str | None = None, max_records: int = 10
+        self, _query: str | None = None, xml_request: str | bytes | None = None, max_records: int = 10
     ) -> Iterator[InspireRecord]:
         """
         Retrieve records from the CSW.
 
         Args:
             query: Optional CQL query string (not fully implemented yet).
-            xml_request: Optional raw XML request string.
+            xml_request: Optional raw XML request string or bytes.
             max_records: Maximum number of records to retrieve.
 
         Yields:
