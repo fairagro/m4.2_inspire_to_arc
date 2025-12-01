@@ -37,13 +37,8 @@ sql_to_arc = { workspace = true }
 inspire_to_arc = { workspace = true }
 
 [tool.uv.workspace]
-members = [
-    "middleware/api",
-    "middleware/api_client",
-    "middleware/inspire_to_arc",
-    "middleware/shared",
-    "middleware/sql_to_arc",
-]
+members = ["middleware/*"]
+exclude = ["middleware/tools"]
 
 [tool.ruff]
 # Exclude directories from linting and formatting
@@ -193,7 +188,6 @@ disable = [
     "C0301",  # line-too-long (handled by ruff formatter)
     "R0801",  # duplicate-code (can be noisy in tests)
 ]
-
 [tool.pytest.ini_options]
 pythonpath = [
     "middleware/api/src",
