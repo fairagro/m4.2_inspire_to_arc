@@ -3,13 +3,15 @@
 import pytest
 
 from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
-
+from owslib.fes import And, PropertyIsEqualTo, PropertyIsLike
 
 @pytest.mark.integration
 def test_connect_to_gdi_de(csw_client: CSWClient) -> None:
     """Test connection to real GDI-DE CSW server."""
     csw_client.connect()
-    assert csw_client._csw is not None  # pylint: disable=protected-access
+    # Verify connection by getting record count (requires successful connection)
+    count = csw_client.get_record_count()
+    assert count > 0  # GDI-DE should have records
 
 
 @pytest.mark.integration
@@ -47,47 +49,58 @@ def test_get_records_with_xml_query(csw_client: CSWClient) -> None:
 
 
 @pytest.mark.integration
+def test_get_records_with_fes_constraints(csw_client: CSWClient) -> None:
+    """Test FES constraint-based query against real CSW.
+    
+    This demonstrates the cleaner FES API vs raw XML.
+    """
+    # Query for records containing "wetter" (weather)
+    constraints = [PropertyIsLike("AnyText", "*wetter*")]
+    
+    records = list(csw_client.get_records(constraints=constraints, max_records=2))
+
+    assert len(records) > 0
+    assert all(isinstance(r, InspireRecord) for r in records)
+
+
+@pytest.mark.integration
 def test_record_count_matches_web_gui(csw_client: CSWClient) -> None:
-    """Verify CSW count matches Web GUI for specific query.
+    """Verify CSW count for specific query is reasonable.
 
     This query should match the Web GUI:
     https://www.geoportal.de/search.html?q=radar&filter.datenanbieter=Deutscher%20Wetterdienst%20%28DWD%29
+    
+    As of 2025-12-01, the web GUI shows ~205 results.
+    We allow for reasonable variation as data changes over time.
     """
-    xml_request = b"""<?xml version="1.0" encoding="UTF-8"?>
-    <csw:GetRecords xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
-                    xmlns:ogc="http://www.opengis.net/ogc"
-                    service="CSW" version="2.0.2" resultType="results"
-                    outputSchema="http://www.isotc211.org/2005/gmd"
-                    startPosition="1" maxRecords="1">
-      <csw:Query typeNames="csw:Record">
-        <csw:ElementSetName>full</csw:ElementSetName>
-        <csw:Constraint version="1.1.0">
-          <ogc:Filter>
-            <ogc:And>
-              <ogc:PropertyIsLike wildCard="*" singleChar="?" escapeChar="\\">
-                <ogc:PropertyName>AnyText</ogc:PropertyName>
-                <ogc:Literal>*radar*</ogc:Literal>
-              </ogc:PropertyIsLike>
-              <ogc:PropertyIsEqualTo>
-                <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-                <ogc:Literal>Deutscher Wetterdienst</ogc:Literal>
-              </ogc:PropertyIsEqualTo>
-            </ogc:And>
-          </ogc:Filter>
-        </csw:Constraint>
-      </csw:Query>
-    </csw:GetRecords>"""
 
-    csw_client.connect()
-    csw_client._csw.getrecords2(xml=xml_request)  # pylint: disable=protected-access
 
-    # Get total matches from CSW
-    csw_count = csw_client._csw.results.get("matches", 0)  # pylint: disable=protected-access
+    # Build query using FES - much more readable than raw XML!
+    constraints = [
+        And(
+            [
+                PropertyIsLike("AnyText", "*radar*"),
+                PropertyIsEqualTo("OrganisationName", "Deutscher Wetterdienst"),
+            ]
+        )
+    ]
 
-    # Expected count from Web GUI (update this manually after checking the GUI)
-    # Note: This is a reference value that may need periodic updates
-    expected_count_min = 100  # Set a minimum threshold
-    expected_count_max = 200  # Set a maximum threshold
+    # Get count from GDI-DE CSW
+    csw_count = csw_client.get_record_count(constraints=constraints)
 
-    assert csw_count >= expected_count_min, f"Too few records: {csw_count}"
-    assert csw_count <= expected_count_max, f"Too many records: {csw_count}"
+    # Reference value from web GUI (as of 2025-12-01: ~205 results)
+    # Allow ±20% tolerance for data changes over time
+    reference_count = 205
+    tolerance_percent = 20
+    min_expected = int(reference_count * (1 - tolerance_percent / 100))  # 164
+    max_expected = int(reference_count * (1 + tolerance_percent / 100))  # 246
+
+    assert csw_count >= min_expected, (
+        f"Count too low: {csw_count} (expected {min_expected}-{max_expected}, reference: {reference_count})"
+    )
+    assert csw_count <= max_expected, (
+        f"Count too high: {csw_count} (expected {min_expected}-{max_expected}, reference: {reference_count})"
+    )
+    
+    # Log the actual count for manual verification if needed
+    print(f"✓ CSW returned {csw_count} records (reference: {reference_count}, range: {min_expected}-{max_expected})")

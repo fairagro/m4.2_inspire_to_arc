@@ -207,7 +207,11 @@ class CSWClient:
             raise
 
     def get_records(
-        self, _query: str | None = None, xml_request: str | bytes | None = None, max_records: int = 10
+        self,
+        _query: str | None = None,
+        xml_request: str | bytes | None = None,
+        constraints: list | None = None,
+        max_records: int = 10,
     ) -> Iterator[InspireRecord]:
         """
         Retrieve records from the CSW.
@@ -215,6 +219,7 @@ class CSWClient:
         Args:
             query: Optional CQL query string (not fully implemented yet).
             xml_request: Optional raw XML request string or bytes.
+            constraints: Optional list of OWSLib FES constraint objects (e.g., PropertyIsEqualTo, And).
             max_records: Maximum number of records to retrieve.
 
         Yields:
@@ -241,6 +246,42 @@ class CSWClient:
                         yield self._parse_iso_record(record)
             return
 
+        # If FES constraints are provided, use getrecords2 with constraints
+        if constraints:
+            logger.info("Using FES constraints for harvesting.")
+            start_position = 0
+            records_yielded = 0
+
+            while records_yielded < max_records:
+                batch_size = min(10, max_records - records_yielded)
+                if batch_size <= 0:
+                    break
+
+                self._csw.getrecords2(
+                    constraints=constraints,
+                    maxrecords=batch_size,
+                    startposition=start_position,
+                    esn="full",
+                    outputschema="http://www.isotc211.org/2005/gmd",
+                )
+
+                if not self._csw.records:
+                    break
+
+                for _uuid, record in self._csw.records.items():
+                    if records_yielded >= max_records:
+                        break
+
+                    if isinstance(record, MD_Metadata):
+                        yield self._parse_iso_record(record)
+                        records_yielded += 1
+
+                start_position += len(self._csw.records)
+                matches = self._csw.results.get("matches")
+                if isinstance(matches, int) and start_position >= matches:
+                    break
+            return
+
         # Standard harvesting (paged)
         # outputschema="http://www.isotc211.org/2005/gmd" is standard for ISO 19139
 
@@ -252,7 +293,7 @@ class CSWClient:
             if batch_size <= 0:
                 break
 
-            self._csw.getrecords(
+            self._csw.getrecords2(
                 maxrecords=batch_size,
                 startposition=start_position,
                 esn="full",
@@ -274,6 +315,34 @@ class CSWClient:
             matches = self._csw.results.get("matches")
             if isinstance(matches, int) and start_position >= matches:
                 break
+
+    def get_record_count(self, xml_request: str | bytes | None = None, constraints: list | None = None) -> int:
+        """
+        Get the total number of matching records without fetching them.
+
+        Args:
+            xml_request: Optional raw XML request string or bytes for filtering.
+            constraints: Optional list of OWSLib FES constraint objects.
+
+        Returns:
+            Total number of matching records.
+        """
+        if self._csw is None:
+            self.connect()
+        if self._csw is None:
+            return 0
+
+        if xml_request:
+            # Use XML request for filtered count
+            self._csw.getrecords2(xml=xml_request)
+        elif constraints:
+            # Use FES constraints for filtered count
+            self._csw.getrecords2(constraints=constraints, maxrecords=1, esn="brief")
+        else:
+            # Get all records count using getrecords2
+            self._csw.getrecords2(maxrecords=1, esn="brief")
+
+        return self._csw.results.get("matches", 0)
 
     def _parse_iso_record(self, iso: MD_Metadata) -> InspireRecord:
         """Parse an OWSLib MD_Metadata object into an InspireRecord."""
