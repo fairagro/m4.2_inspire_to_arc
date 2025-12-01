@@ -92,6 +92,10 @@ known-first-party = ["middleware"]
 force-single-line = false
 combine-as-imports = true
 
+# Per-file-ignores for test directories
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D103"]  # missing-function-docstring in test files
+
 # Black and isort replaced by ruff format - configurations removed to avoid conflicts
 
 [tool.mypy]
@@ -102,6 +106,15 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
+
+# mypy_path defines where to look for packages (same as pytest pythonpath)
+mypy_path = [
+  "middleware/api/src",
+  "middleware/api_client/src",
+  "middleware/shared/src",
+  "middleware/sql_to_arc/src",
+  "middleware/inspire_to_arc/src",
+]
 
 # Exclude directories from type checking
 exclude = [

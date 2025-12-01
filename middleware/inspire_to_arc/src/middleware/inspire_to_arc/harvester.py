@@ -202,7 +202,7 @@ class CSWClient:
             if self._csw and hasattr(self._csw, "identification") and self._csw.identification:
                 csw_title = getattr(self._csw.identification, "title", None)
             logger.info("Connected to CSW: %s", csw_title)
-        except Exception as e:
+        except (OSError, TimeoutError, ValueError) as e:
             logger.error("Failed to connect to CSW at %s: %s", self._url, e)
             raise
 
@@ -231,90 +231,107 @@ class CSWClient:
             logger.error("CSW client is not initialized.")
             return
 
-        # If XML request is provided, use it directly
         if xml_request:
-            logger.info("Using raw XML request for harvesting.")
-            # Note: Pagination with raw XML is complex as it requires modifying the XML.
-            # For now, we assume the XML contains the necessary constraints and we fetch what is requested.
-            # If the user wants pagination, they might need to handle it in the XML or we need to parse/inject it.
-            # OWSLib's getrecords2 with xml parameter overrides everything else.
-            self._csw.getrecords2(xml=xml_request)
-            
-            if self._csw.records:
-                for _uuid, record in self._csw.records.items():
-                    if isinstance(record, MD_Metadata):
-                        yield self._parse_iso_record(record)
+            yield from self._get_records_by_xml(xml_request)
+        elif constraints:
+            yield from self._get_records_by_constraints(constraints, max_records)
+        else:
+            yield from self._get_records_standard(max_records)
+
+    def _get_records_by_xml(self, xml_request: str | bytes) -> Iterator[InspireRecord]:
+        """Retrieve records using a raw XML request."""
+        logger.info("Using raw XML request for harvesting.")
+        if self._csw is None:
+            self.connect()
+        if self._csw is None:
+            logger.error("CSW client is not initialized.")
             return
+        self._csw.getrecords2(xml=xml_request)
+        if self._csw.records:
+            for _uuid, record in self._csw.records.items():
+                if isinstance(record, MD_Metadata):
+                    yield self._parse_iso_record(record)
 
-        # If FES constraints are provided, use getrecords2 with constraints
-        if constraints:
-            logger.info("Using FES constraints for harvesting.")
-            start_position = 0
-            records_yielded = 0
+    def _get_records_by_constraints(self, constraints: list, max_records: int) -> Iterator[InspireRecord]:
+        """Retrieve records using FES constraints with pagination."""
+        logger.info("Using FES constraints for harvesting.")
+        yield from self._get_records_paged(max_records, constraints=constraints)
 
-            while records_yielded < max_records:
-                batch_size = min(10, max_records - records_yielded)
-                if batch_size <= 0:
-                    break
+    def _get_records_standard(self, max_records: int) -> Iterator[InspireRecord]:
+        """Retrieve records using standard paged harvesting."""
+        yield from self._get_records_paged(max_records)
 
-                self._csw.getrecords2(
-                    constraints=constraints,
-                    maxrecords=batch_size,
-                    startposition=start_position,
-                    esn="full",
-                    outputschema="http://www.isotc211.org/2005/gmd",
-                )
-
-                if not self._csw.records:
-                    break
-
-                for _uuid, record in self._csw.records.items():
-                    if records_yielded >= max_records:
-                        break
-
-                    if isinstance(record, MD_Metadata):
-                        yield self._parse_iso_record(record)
-                        records_yielded += 1
-
-                start_position += len(self._csw.records)
-                matches = self._csw.results.get("matches")
-                if isinstance(matches, int) and start_position >= matches:
-                    break
-            return
-
-        # Standard harvesting (paged)
-        # outputschema="http://www.isotc211.org/2005/gmd" is standard for ISO 19139
-
+    def _get_records_paged(self, max_records: int, constraints: list | None = None) -> Iterator[InspireRecord]:
+        """Retrieve records using pagination."""
         start_position = 0
         records_yielded = 0
 
         while records_yielded < max_records:
-            batch_size = min(10, max_records - records_yielded)
+            batch_size = self._calculate_batch_size(max_records, records_yielded)
             if batch_size <= 0:
                 break
 
-            self._csw.getrecords2(
-                maxrecords=batch_size,
-                startposition=start_position,
-                esn="full",
-                outputschema="http://www.isotc211.org/2005/gmd",
-            )
-
-            if not self._csw.records:
+            if not self._fetch_record_batch(batch_size, start_position, constraints):
                 break
 
-            for _uuid, record in self._csw.records.items():
-                if records_yielded >= max_records:
-                    break
+            count = 0
+            for record in self._yield_records_from_batch(max_records, records_yielded):
+                yield record
+                count += 1
+            records_yielded += count
+            if self._csw and self._csw.records:
+                start_position += len(self._csw.records)
 
-                if isinstance(record, MD_Metadata):
-                    yield self._parse_iso_record(record)
-                    records_yielded += 1
-
-            start_position += len(self._csw.records)
-            matches = self._csw.results.get("matches")
-            if isinstance(matches, int) and start_position >= matches:
+            if self._all_records_fetched(start_position):
                 break
+
+    def _calculate_batch_size(self, max_records: int, records_yielded: int) -> int:
+        """Calculate the size of the next batch to fetch."""
+        return min(10, max_records - records_yielded)
+
+    def _fetch_record_batch(self, batch_size: int, start_position: int, constraints: list | None) -> bool:
+        """Fetch a batch of records from the CSW service. Returns True if successful."""
+        common_kwargs = {
+            "maxrecords": batch_size,
+            "startposition": start_position,
+            "esn": "full",
+            "outputschema": "http://www.isotc211.org/2005/gmd",
+        }
+
+        if self._csw is None:
+            self.connect()
+        if self._csw is None:
+            logger.error("CSW client is not initialized.")
+            return False
+
+        try:
+            # Always use getrecords2() (getrecords is deprecated)
+            if constraints:
+                self._csw.getrecords2(constraints=constraints, **common_kwargs)
+            else:
+                self._csw.getrecords2(**common_kwargs)
+            return True
+        except (OSError, TimeoutError, ValueError) as e:
+            logger.error("Failed to fetch records from CSW: %s", e)
+            return False
+
+    def _yield_records_from_batch(self, max_records: int, records_yielded: int) -> Iterator[InspireRecord]:
+        """Yield parsed records from the current batch."""
+        if self._csw is None or not self._csw.records:
+            return
+        for _uuid, record in self._csw.records.items():
+            if records_yielded >= max_records:
+                break
+            if isinstance(record, MD_Metadata):
+                yield self._parse_iso_record(record)
+                records_yielded += 1
+
+    def _all_records_fetched(self, start_position: int) -> bool:
+        """Check if all available records have been fetched."""
+        if self._csw is None:
+            return True
+        matches = self._csw.results.get("matches")
+        return isinstance(matches, int) and start_position >= matches
 
     def get_record_count(self, xml_request: str | bytes | None = None, constraints: list | None = None) -> int:
         """

@@ -1,9 +1,10 @@
 """Integration tests for the INSPIRE harvester against real GDI-DE CSW server."""
 
 import pytest
+from owslib.fes import And, PropertyIsEqualTo, PropertyIsLike  # type: ignore
 
 from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
-from owslib.fes import And, PropertyIsEqualTo, PropertyIsLike
+
 
 @pytest.mark.integration
 def test_connect_to_gdi_de(csw_client: CSWClient) -> None:
@@ -51,12 +52,12 @@ def test_get_records_with_xml_query(csw_client: CSWClient) -> None:
 @pytest.mark.integration
 def test_get_records_with_fes_constraints(csw_client: CSWClient) -> None:
     """Test FES constraint-based query against real CSW.
-    
+
     This demonstrates the cleaner FES API vs raw XML.
     """
     # Query for records containing "wetter" (weather)
     constraints = [PropertyIsLike("AnyText", "*wetter*")]
-    
+
     records = list(csw_client.get_records(constraints=constraints, max_records=2))
 
     assert len(records) > 0
@@ -69,12 +70,10 @@ def test_record_count_matches_web_gui(csw_client: CSWClient) -> None:
 
     This query should match the Web GUI:
     https://www.geoportal.de/search.html?q=radar&filter.datenanbieter=Deutscher%20Wetterdienst%20%28DWD%29
-    
+
     As of 2025-12-01, the web GUI shows ~205 results.
     We allow for reasonable variation as data changes over time.
     """
-
-
     # Build query using FES - much more readable than raw XML!
     constraints = [
         And(
@@ -101,6 +100,6 @@ def test_record_count_matches_web_gui(csw_client: CSWClient) -> None:
     assert csw_count <= max_expected, (
         f"Count too high: {csw_count} (expected {min_expected}-{max_expected}, reference: {reference_count})"
     )
-    
+
     # Log the actual count for manual verification if needed
     print(f"✓ CSW returned {csw_count} records (reference: {reference_count}, range: {min_expected}-{max_expected})")
