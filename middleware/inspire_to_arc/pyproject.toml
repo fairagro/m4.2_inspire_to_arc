@@ -3,7 +3,7 @@ name = "inspire_to_arc"
 version = "0.1.0"
 description = "Harvester for INSPIRE metadata to ARC conversion"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "owslib>=0.31.0",
     "arctrl>=1.0.0",

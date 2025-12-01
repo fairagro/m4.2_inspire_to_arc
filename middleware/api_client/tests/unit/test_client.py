@@ -1,6 +1,7 @@
 """Unit tests for the ApiClient class."""
 
 from pathlib import Path
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -8,14 +9,17 @@ import pytest
 import respx
 from arctrl import ARC, ArcInvestigation  # type: ignore[import-untyped]
 
-from middleware.api_client import ApiClient, ApiClientError, Config
+from middleware.api_client.api_client import ApiClient, ApiClientError
+from middleware.api_client.config import Config
 from middleware.shared.api_models.models import CreateOrUpdateArcsResponse
 
 
 @pytest.fixture
 def client_config(test_config_dict: dict) -> Config:
     """Create a Config instance for testing."""
-    return Config.from_data(test_config_dict)
+    # Cast to the specific subclass to satisfy mypy in the test environment.
+    # This is strange, beacuse Config.from_data should already return the correct type.
+    return cast(Config, Config.from_data(test_config_dict))
 
 
 @pytest.mark.asyncio

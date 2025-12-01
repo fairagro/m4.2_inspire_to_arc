@@ -21,6 +21,7 @@ dev = [
   "pytest-asyncio>=1.1.0",
   "pytest-cov>=7.0.0",
   "mypy>=1.11.0",
+  "pytest-mypy-plugins>=3.0.0",
   "bandit>=1.7.0",
   "ruff>=0.1.0",
   "types-pyyaml>=6.0.12.20250915",
@@ -106,7 +107,6 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
-mypy_path = "middleware/api/src:middleware/api_client/src:middleware/inspire_to_arc/src:middleware/shared/src:middleware/sql_to_arc/src"
 
 # Exclude directories from type checking
 exclude = [
@@ -192,4 +192,13 @@ disable = [
     "R0913",  # too-many-arguments (opinionated, case-by-case basis)
     "C0301",  # line-too-long (handled by ruff formatter)
     "R0801",  # duplicate-code (can be noisy in tests)
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "middleware/api/src",
+    "middleware/api_client/src",
+    "middleware/shared/src",
+    "middleware/sql_to_arc/src",
+    "middleware/inspire_to_arc/src",
 ]

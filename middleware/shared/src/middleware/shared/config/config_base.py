@@ -2,11 +2,13 @@
 
 import logging
 from pathlib import Path
-from typing import Annotated, Literal, Self, cast
+from typing import Annotated, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
 from .config_wrapper import ConfigWrapper
+
+T = TypeVar("T", bound="ConfigBase")
 
 
 class ConfigBase(BaseModel):
@@ -17,43 +19,42 @@ class ConfigBase(BaseModel):
     ] = "INFO"
 
     @classmethod
-    def from_config_wrapper(cls, wrapper: ConfigWrapper) -> Self:
+    def from_config_wrapper(cls: type[T], wrapper: ConfigWrapper) -> T:
         """Create Config from ConfigWrapper.
 
         Args:
             wrapper (ConfigWrapper): Wrapped configuration data.
 
         Returns:
-            Self: Configuration instance.
+            T: An instance of the specific ConfigBase subclass.
 
         """
         unwrapped = wrapper.unwrap()
-        # Cast to satisfy MyPy's warn_return_any=true setting
-        return cast(Self, cls.model_validate(unwrapped))
+        return cls.model_validate(unwrapped)
 
     @classmethod
-    def from_data(cls, data: dict) -> Self:
+    def from_data(cls: type[T], data: dict) -> T:
         """Create Config from raw data dictionary.
 
         Args:
             data (dict): Raw configuration data.
 
         Returns:
-            Self: Configuration instance.
+            T: An instance of the specific ConfigBase subclass.
 
         """
         wrapper = ConfigWrapper.from_data(data)
         return cls.from_config_wrapper(wrapper)
 
     @classmethod
-    def from_yaml_file(cls, path: Path) -> Self:
+    def from_yaml_file(cls: type[T], path: Path) -> T:
         """Create Config from a YAML file.
 
         Args:
             path (Path): Path to the YAML config file.
 
         Returns:
-            Config: Configuration instance.
+            T: An instance of the specific ConfigBase subclass.
 
         Raises:
             RuntimeError: If the config file is not found.
