@@ -39,7 +39,7 @@ class InspireMapper:
         # 4. Wrap in ARC
         return ARC.from_arc_investigation(investigation)
 
-    def map_person(self, contact: Contact) -> Person:
+    def map_person(self, contact: Contact) -> Person | None:
         """Map contact object to Person with full CI_ResponsibleParty details."""
         # Name splitting - prefer full name over just last name
         if not contact.name:

@@ -126,6 +126,7 @@ def test_map_person(mapper: InspireMapper) -> None:
     
     person = mapper.map_person(contact)
     
+    assert person is not None
     assert person.FirstName == "Jane"
     assert person.LastName == "Smith"
     assert person.Affiliation == "Acme Corp"
@@ -135,6 +136,19 @@ def test_map_person(mapper: InspireMapper) -> None:
     # Check Role annotation
     assert len(person.Roles) == 1
     assert person.Roles[0].Name == "principalInvestigator"
+
+def test_map_person_without_name(mapper: InspireMapper) -> None:
+    """Test that map_person returns None when contact has no name."""
+    contact = Contact(
+        organization="Acme Corp",
+        email="contact@acme.com",
+        role="pointOfContact"
+    )
+    
+    person = mapper.map_person(contact)
+    
+    assert person is None
+
 
 def test_spatial_sampling_protocol(mapper: InspireMapper, sample_record: InspireRecord) -> None:
     """Test creation of Spatial Sampling protocol."""
