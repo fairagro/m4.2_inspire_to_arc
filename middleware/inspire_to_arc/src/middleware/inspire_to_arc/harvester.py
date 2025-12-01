@@ -206,12 +206,15 @@ class CSWClient:
             logger.error("Failed to connect to CSW at %s: %s", self._url, e)
             raise
 
-    def get_records(self, _query: str | None = None, max_records: int = 10) -> Iterator[InspireRecord]:
+    def get_records(
+        self, _query: str | None = None, xml_request: str | None = None, max_records: int = 10
+    ) -> Iterator[InspireRecord]:
         """
         Retrieve records from the CSW.
 
         Args:
             query: Optional CQL query string (not fully implemented yet).
+            xml_request: Optional raw XML request string.
             max_records: Maximum number of records to retrieve.
 
         Yields:
@@ -223,8 +226,22 @@ class CSWClient:
             logger.error("CSW client is not initialized.")
             return
 
-        # Simple implementation: get all records (paged) up to max_records
-        # For GDI-DE, we might need specific constraints to get INSPIRE data
+        # If XML request is provided, use it directly
+        if xml_request:
+            logger.info("Using raw XML request for harvesting.")
+            # Note: Pagination with raw XML is complex as it requires modifying the XML.
+            # For now, we assume the XML contains the necessary constraints and we fetch what is requested.
+            # If the user wants pagination, they might need to handle it in the XML or we need to parse/inject it.
+            # OWSLib's getrecords2 with xml parameter overrides everything else.
+            self._csw.getrecords2(xml=xml_request)
+            
+            if self._csw.records:
+                for _uuid, record in self._csw.records.items():
+                    if isinstance(record, MD_Metadata):
+                        yield self._parse_iso_record(record)
+            return
+
+        # Standard harvesting (paged)
         # outputschema="http://www.isotc211.org/2005/gmd" is standard for ISO 19139
 
         start_position = 0

@@ -61,3 +61,41 @@ def test_get_records(mock_csw_cls: MagicMock) -> None:
     assert records[0].identifier == "uuid-123"
     assert records[0].title == "Test Title"
     assert records[0].lineage == "Test Lineage"
+    assert records[0].lineage == "Test Lineage"
+
+
+def test_get_records_xml(mock_csw_cls: MagicMock) -> None:
+    """Test get_records with raw XML request."""
+    # Setup mock CSW
+    mock_csw_instance = MagicMock()
+    mock_csw_cls.return_value = mock_csw_instance
+
+    # Mock records
+    mock_record = MagicMock(spec=MD_Metadata)
+    mock_record.identifier = "uuid-xml"
+    # Configure nested mocks
+    mock_identification = MagicMock()
+    mock_identification.title = "XML Title"
+    mock_identification.temporalextent_start = None
+    mock_identification.temporalextent_end = None
+    mock_record.identification = mock_identification
+    mock_record.datestamp = "2023-01-01"
+    mock_record.contact = []
+    
+    # Mock dataquality
+    mock_dataquality = MagicMock()
+    mock_dataquality.lineage = "Test Lineage"
+    mock_record.dataquality = mock_dataquality
+
+    mock_csw_instance.records = {"uuid-xml": mock_record}
+    
+    client = CSWClient("http://example.com/csw")
+    xml_query = "<csw:GetRecords>...</csw:GetRecords>"
+    records = list(client.get_records(xml_request=xml_query))
+
+    # Verify getrecords2 was called with xml argument
+    mock_csw_instance.getrecords2.assert_called_once_with(xml=xml_query)
+    
+    assert len(records) == 1
+    assert records[0].identifier == "uuid-xml"
+    assert records[0].title == "XML Title"

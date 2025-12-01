@@ -37,6 +37,7 @@ async def run_harvest(config: Config) -> None:
             # Pass query if configured
             records_iter = csw_client.get_records(
                 _query=config.query,
+                xml_request=config.xml_request,
                 max_records=1000000,  # Use a large number or implement proper pagination loop in main
             )
 
