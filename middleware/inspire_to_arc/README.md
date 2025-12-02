@@ -3,6 +3,55 @@
 This tool converts INSPIRE-compliant metadata (ISO 19139 XML) into ARC (ARChival Research & Data) objects.
 It is designed to harvest metadata from GDI-DE (Geodateninfrastruktur Deutschland) and other INSPIRE-compatible catalogs via CSW (Catalogue Service for the Web).
 
+## Usage Examples
+
+### Basic Querying
+
+```python
+from middleware.inspire_to_arc.harvester import CSWClient
+
+# Connect to GDI-DE CSW
+client = CSWClient("https://gdk.gdi-de.org/gdi-de/srv/eng/csw")
+client.connect()
+
+# Fetch records
+records = list(client.get_records(max_records=10))
+```
+
+### Advanced Filtering with FES
+
+Use OWSLib's Filter Encoding Specification (FES) for readable, type-safe queries:
+
+```python
+from owslib.fes import And, PropertyIsEqualTo, PropertyIsLike
+
+# Query for weather radar data from DWD
+constraints = [
+    And([
+        PropertyIsLike("AnyText", "*radar*"),
+        PropertyIsEqualTo("OrganisationName", "Deutscher Wetterdienst"),
+    ])
+]
+
+records = list(client.get_records(constraints=constraints, max_records=100))
+```
+
+### Raw XML Queries
+
+For complex queries, you can also use raw XML:
+
+```python
+xml_request = b"""<?xml version="1.0" encoding="UTF-8"?>
+<csw:GetRecords xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+                service="CSW" version="2.0.2">
+  <csw:Query typeNames="csw:Record">
+    <csw:ElementSetName>full</csw:ElementSetName>
+  </csw:Query>
+</csw:GetRecords>"""
+
+records = list(client.get_records(xml_request=xml_request))
+```
+
 ## Concept
 
 The goal is to map geospatial metadata (INSPIRE) to the ISA (Investigation, Study, Assay) model used by ARC.
