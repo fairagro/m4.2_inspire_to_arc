@@ -21,7 +21,7 @@ fi
 echo "==> Starting SQL-to-ARC with EXTERNAL API..."
 echo "    - Local PostgreSQL will be started"
 echo "    - Database will be initialized with Edaphobase dump"
-echo "    - SQL-to-ARC will connect to the API configured in config-external.yaml"
+echo "    - SQL-to-ARC will connect to the API configured in config.yaml"
 echo "    - Using client certificates: client.crt, client.key"
 echo ""
 
@@ -33,9 +33,9 @@ fi
 # Use sops exec-env to pass the decrypted key as an environment variable
 # without writing it to a physical disk file.
 sops exec-env "${script_dir}/client.key" \
-  "docker compose -f compose-external.yaml up $BUILD_FLAG"
+  "docker compose -f compose.yaml up $BUILD_FLAG"
 
 echo ""
 echo "==> Services finished!"
-echo "    - View logs: docker compose -f compose-external.yaml logs"
-echo "    - Clean up: docker compose -f compose-external.yaml down"
+echo "    - View logs: docker compose -f compose.yaml logs"
+echo "    - Clean up: docker compose -f compose.yaml down"

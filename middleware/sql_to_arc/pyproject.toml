@@ -8,8 +8,10 @@ dependencies = [
     "arctrl>=3.0.0b15",
     "psycopg[binary]>=3.3.2",
     "pydantic>=2.12.5",
-    "shared",
-    "api_client",
+    "shared>=0.0.1",
+    "api_client>=0.0.1",
+    "opentelemetry-api>=1.39.1",
+    "opentelemetry-sdk>=1.39.1"
 ]
 
 [tool.uv.sources]
