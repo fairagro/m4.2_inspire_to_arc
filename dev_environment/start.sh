@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Start the development environment with encrypted secrets
+# Start sql_to_arc locally with a local DB, but connecting to an EXTERNAL Middleware API.
 #
 # Usage:
-#   ./start.sh              # Start all services
-#   ./start.sh --build      # Build images and start
+#   ./start-external.sh              # Start services
+#   ./start-external.sh --build      # Build images and start
 #
 
 set -euo pipefail
@@ -18,30 +18,24 @@ if [[ "${1:-}" == "--build" ]]; then
   BUILD_FLAG="--build"
 fi
 
-echo "==> Starting development environment..."
-echo "    - PostgreSQL will be started"
+echo "==> Starting SQL-to-ARC with EXTERNAL API..."
+echo "    - Local PostgreSQL will be started"
 echo "    - Database will be initialized with Edaphobase dump"
-echo "    - SQL-to-ARC converter will run after initialization"
+echo "    - SQL-to-ARC will connect to the API configured in config-external.yaml"
+echo "    - Using client certificates: client.crt, client.key"
 echo ""
 
-# Check if sops is available
-if ! command -v sops &> /dev/null; then
-  echo "ERROR: sops is not installed or not in PATH"
-  echo "Install sops: https://github.com/getsops/sops"
+if [[ ! -f "client.key" ]]; then
+  echo "ERROR: client.key not found. Please provide your client key."
   exit 1
 fi
 
-echo "==> Starting services with sops exec-env..."
-echo "    Environment variable 'data' will contain decrypted client.key"
-echo ""
-
-# Use sops exec-env to decrypt and run docker compose
-# We need to preserve TERM and PATH for proper terminal support
-# Use exec-env without --pristine but ensure minimal env pollution
-sops exec-env "${script_dir}/secrets.enc.yaml" \
-  "docker compose up $BUILD_FLAG"
+# Use sops exec-env to pass the decrypted key as an environment variable
+# without writing it to a physical disk file.
+sops exec-env "${script_dir}/client.key" \
+  "docker compose -f compose-external.yaml up $BUILD_FLAG"
 
 echo ""
 echo "==> Services finished!"
-echo "    - View logs: docker compose logs"
-echo "    - Clean up: docker compose down"
+echo "    - View logs: docker compose -f compose-external.yaml logs"
+echo "    - Clean up: docker compose -f compose-external.yaml down"

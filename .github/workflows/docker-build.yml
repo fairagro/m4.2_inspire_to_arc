@@ -18,7 +18,7 @@ on:
         description: 'A JSON string array of components to build'
         required: false
         type: string
-        default: '["api"]'
+        default: '["sql_to_arc"]'
     outputs:
       version:
         description: 'Calculated version'
@@ -145,10 +145,6 @@ jobs:
         id: component-meta
         run: |
           case "${{ matrix.component }}" in
-            api)
-              echo "title=FairAgro Advanced Middleware API" >> $GITHUB_OUTPUT
-              echo "description=Advanced middleware API for FairAgro platform" >> $GITHUB_OUTPUT
-              ;;
             sql_to_arc)
               echo "title=FairAgro SQL to ARC Converter" >> $GITHUB_OUTPUT
               echo "description=Converts SQL database metadata to ARC format for FairAgro platform" >> $GITHUB_OUTPUT
