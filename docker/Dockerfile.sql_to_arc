@@ -1,3 +1,20 @@
+# ---- Package Build Stage ----
+FROM python:3.12.12-alpine3.23 AS package-builder
+
+WORKDIR /build
+
+# Copy project files needed for package build
+COPY pyproject.toml uv.lock ./
+COPY middleware ./middleware
+
+# Upgrade pip and install uv
+RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
+
+# We prefer to have a real python package for sql_to_arc that will be
+# installed in the next stage using uv.
+RUN uv build --package sql_to_arc --wheel
+
+
 # ---- Binary Build Stage ----
 FROM python:3.12.12-alpine3.23 AS binary-builder
 
@@ -14,15 +31,15 @@ WORKDIR /build
 
 # Install uv and PyInstaller
 RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
-
-# Copy project files needed for package build
-COPY pyproject.toml uv.lock ./
-COPY middleware ./middleware
-
-# Install PyInstaller
 RUN uv pip install --system pyinstaller
 
-# Install further dependencies for sql_to_arc
+# Copy and install built wheel from package-builder stage
+COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
+RUN uv pip install --system /tmp/wheels/*.whl
+
+# use uv to install dependencies for sql_to_arc that we do not have pre-built wheels for
+COPY pyproject.toml uv.lock ./
+COPY middleware ./middleware
 RUN uv sync
 
 # Build standalone binary with PyInstaller
