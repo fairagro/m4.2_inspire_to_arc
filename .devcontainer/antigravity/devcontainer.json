@@ -48,8 +48,7 @@
 		"ghcr.io/devcontainers-extra/features/apt-packages:1": {
 			"clean_ppas": true,
 			"preserve_apt_list": true,
-			"packages": "curl,ca-certificates",
-			"ppas": "ppa:deadsnakes/ppa"
+			"packages": "curl,ca-certificates"
 		},
 		"ghcr.io/devcontainers-extra/features/curl-apt-get:1": {},
 		"ghcr.io/devcontainers-extra/features/pre-commit:2": {
@@ -110,8 +109,10 @@
 
 	// Load encrypted environment variables automatically (with error tolerance)
 	"postCreateCommand": {
-		"install ggshield": "sudo /usr/local/py-utils/bin/pipx install --global ggshield",
-		"setup bashrc": "grep -qF 'scripts/load-env.sh' ~/.bashrc || echo 'source ${containerWorkspaceFolder}/scripts/load-env.sh' >> ~/.bashrc"
+		"setup bashrc": "grep -qF 'source \\${containerWorkspaceFolder}/scripts/load-env.sh' ~/.bashrc || echo 'source \\${containerWorkspaceFolder}/scripts/load-env.sh' >> ~/.bashrc"
+	},
+	"postStartCommand": {
+		"install ggshield": "sudo /usr/local/py-utils/bin/pipx install --global ggshield"
 	},
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
