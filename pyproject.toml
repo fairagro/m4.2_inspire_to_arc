@@ -1,7 +1,7 @@
 [project]
-name = "m4-2-advanced-middleware"
-version = "6.0.0"
-description = "The FAIRagro advanced middleware"
+name = "m4-2-sql-to-arc"
+version = "0.1.0"
+description = "The FAIRagro SQL-to-ARC client"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
