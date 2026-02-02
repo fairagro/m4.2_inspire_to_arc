@@ -10,8 +10,8 @@ COPY middleware ./middleware
 # Upgrade pip and install uv
 RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
 
-# We prefer to have a real python package for sql_to_arc that will be
-# installed in the next stage using uv.
+# We prefer to build a wheel for our package first. This ensures we have a clean,
+# distributable artifact that contains only the necessary files.
 RUN uv build --package sql_to_arc --wheel
 
 
@@ -29,24 +29,34 @@ RUN apk add --no-cache \
 
 WORKDIR /build
 
-# Install uv and PyInstaller
+# Install uv core tool
 RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
-RUN uv pip install --system pyinstaller
 
-# Copy and install built wheel from package-builder stage
+# Bring in the pre-built wheel and project metadata
 COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
-RUN uv pip install --system /tmp/wheels/*.whl
-
-# use uv to install dependencies for sql_to_arc that we do not have pre-built wheels for
 COPY pyproject.toml uv.lock ./
-COPY middleware ./middleware
-RUN uv sync
 
-# Build standalone binary with PyInstaller
-RUN pyinstaller --onedir \
+# We still need the source code because uv sync requires all workspace members (e.g., middleware/sql_to_arc)
+# to be physically present to validate the environment against the lockfile.
+COPY middleware ./middleware
+
+# Dependency Resolution Strategy:
+# 1. We would prefer to install everything as wheels for speed and reliability.
+# 2. However, some dependencies (especially git-based ones like api_client) are not available
+#    as pre-built wheels on PyPI.
+# 3. Thus, we use 'uv sync' to create a virtual environment (.venv) and resolve all
+#    complex dependencies exactly as specified in the uv.lock.
+RUN uv sync --no-dev
+
+# 4. Finally, for packages like sql_to_arc that exist both as a workspace dependency
+#    and as a pre-built wheel, we explicitly 'uv pip install' the wheel. This ensures
+#    we use our optimized, pre-built package instead of the 'editable' source install.
+RUN uv pip install /tmp/wheels/*.whl pyinstaller
+
+# Build standalone binary using the .venv's context.
+RUN . .venv/bin/activate && \
+    python -m PyInstaller --onedir \
     --name sql_to_arc \
-    --paths .venv/lib/python3.12/site-packages \
-    --paths /build/middleware/sql_to_arc/src \
     /build/middleware/sql_to_arc/src/middleware/sql_to_arc/main.py
 
 
