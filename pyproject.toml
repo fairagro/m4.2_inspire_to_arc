@@ -1,19 +1,15 @@
 [project]
-name = "m4-2-advanced-middleware"
-version = "6.0.0"
-description = "The FAIRagro advanced middleware"
+name = "m4-2-sql-to-arc"
+version = "0.1.0"
+description = "The FAIRagro SQL-to-ARC client"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "api",
-  "api_client",
   "sql_to_arc",
-  "shared",
 ]
 
 [dependency-groups]
 dev = [
-  "fastapi[standard]>=0.124.0",
   "httpx>=0.28.1",
   "pylint>=4.0.4",
   "pytest>=9.0.2",
@@ -29,18 +25,11 @@ dev = [
 ]
 
 [tool.uv.sources]
-api = { workspace = true }
-api_client = { workspace = true }
 sql_to_arc = { workspace = true }
-shared = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "middleware/api",
-    "middleware/api_client",
     "middleware/sql_to_arc",
-    "middleware/shared",
-    "middleware/tools",
 ]
 
 [tool.ruff]
@@ -105,7 +94,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
-mypy_path = "middleware/api/src:middleware/api_client/src:middleware/shared/src:middleware/sql_to_arc/src"
+mypy_path = "middleware/sql_to_arc/src"
 
 # Exclude directories from type checking
 exclude = [

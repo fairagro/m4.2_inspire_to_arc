@@ -12,13 +12,11 @@
 			"disableIp6tables": true,
 			"version": "28.5.1"
 		},
-		// NOTE: this conflicts with out own pre-push git hook.
-		// Currently we do not need git-lfs in this project, anyway.
-		// "ghcr.io/devcontainers/features/git-lfs:1": {
-		// 	"autoPull": true,
-		// 	"installDirectlyFromGitHubRelease": true,
-		// 	"version": "3.7.1"
-		// },
+		"ghcr.io/devcontainers/features/git-lfs:1": {
+			"autoPull": true,
+			"installDirectlyFromGitHubRelease": true,
+			"version": "3.7.1"
+		},
 		"ghcr.io/devcontainers/features/github-cli:1": {
 			"installDirectlyFromGitHubRelease": true,
 			"version": "2.82.1"

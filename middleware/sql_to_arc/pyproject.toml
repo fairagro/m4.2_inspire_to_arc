@@ -8,13 +8,14 @@ dependencies = [
     "arctrl>=3.0.0b15",
     "psycopg[binary]>=3.3.2",
     "pydantic>=2.12.5",
-    "shared",
-    "api_client",
+    "shared>=0.0.1",
+    "api_client>=0.0.1",
+    "opentelemetry-api>=1.39.1",
 ]
 
 [tool.uv.sources]
-shared = { workspace = true }
-api_client = { workspace = true }
+api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
+shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/middleware"]
