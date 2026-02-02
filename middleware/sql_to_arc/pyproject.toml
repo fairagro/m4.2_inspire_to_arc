@@ -1,6 +1,6 @@
 [project]
 name = "sql_to_arc"
-version = "0.0.0" # currently we disregard the version of this subpackage
+version = "0.1.0" # currently we disregard the version of this subpackage
 description = "The FAIRagro advanced middleware SQL-to-ARC converter"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -15,8 +15,8 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "feature/split_off_client", subdirectory = "middleware/api_client" }
-shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "feature/split_off_client", subdirectory = "middleware/shared" }
+api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
+shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/middleware"]
