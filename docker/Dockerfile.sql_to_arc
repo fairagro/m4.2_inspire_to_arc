@@ -10,9 +10,13 @@ COPY middleware ./middleware
 # Upgrade pip and install uv
 RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
 
+# Declare build argument for versioning
+ARG APP_VERSION=0.0.0
+
 # We prefer to build a wheel for our package first. This ensures we have a clean,
 # distributable artifact that contains only the necessary files.
-RUN uv build --package sql_to_arc --wheel
+# We set SETUPTOOLS_SCM_PRETEND_VERSION so hatch-vcs can work without .git folder.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} uv build --package sql_to_arc --wheel
 
 
 # ---- Binary Build Stage ----
@@ -51,7 +55,8 @@ RUN uv sync --no-dev
 # 4. Finally, for packages like sql_to_arc that exist both as a workspace dependency
 #    and as a pre-built wheel, we explicitly 'uv pip install' the wheel. This ensures
 #    we use our optimized, pre-built package instead of the 'editable' source install.
-RUN uv pip install /tmp/wheels/*.whl pyinstaller
+ARG APP_VERSION=0.0.0
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} uv pip install /tmp/wheels/*.whl pyinstaller
 
 # Build standalone binary using the .venv's context.
 RUN . .venv/bin/activate && \
