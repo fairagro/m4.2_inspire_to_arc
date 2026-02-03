@@ -87,6 +87,7 @@ This project depends on `shared` and `api_client` libraries, which are hosted in
 - Mapping of Persons (Contacts) with JSON-encoded roles.
 - Mapping of Publications.
 - Metadata extraction for ISA (Investigation, Study, Assay) structures.
+- CLI support: `--version` provides the current package version (via `importlib.metadata`).
 
 ### Git LFS Integration
 
