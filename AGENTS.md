@@ -135,6 +135,15 @@ uv run pytest --cov=middleware/sql_to_arc middleware/sql_to_arc/tests/
 - DB passwords and API secrets should be managed via environment variables or `.env`.
 - `client.key` is dynamically handled in container secrets (`tmpfs`).
 
+## ✨ Code Quality Standards
+
+Agents are expected to maintain high code quality by addressing issues reported by the project's configured tools: **Ruff, Pylance, MyPy, Pylint, and Bandit**.
+
+- **Automatic Fixes**: Actively check for and fix code smells, warnings, and notices.
+- **Real Fixes vs. Suppression**: Issues must be resolved with actual code changes. Using comments to suppress warnings (e.g., `# noqa`, `# type: ignore`, `# pylint: disable`) is an **option of last resort**.
+- **When to Suppress**: Only suppress if a fix is technically impossible or would result in unnecessarily complex or unreadable code.
+- **Comprehensive Coverage**: Fix all reported issues, including low-severity notices and warnings, not just critical errors.
+
 ## 📚 File Modifications Pattern
 
 When editing files:
