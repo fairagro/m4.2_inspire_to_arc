@@ -11,7 +11,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        stages: [manual, pre-push]
       - id: end-of-file-fixer
+        stages: [manual, pre-push]
       - id: check-yaml
         exclude: ^helmchart/[^/]+/templates/.*\.ya?ml$
       - id: check-added-large-files
@@ -30,10 +32,9 @@ repos:
       # Ruff - Linting
       - id: ruff
         name: ruff lint
-        entry: uv run ruff check
+        entry: uv run ruff check --no-fix
         language: system
         types: [python]
-        args: [--fix, --exit-non-zero-on-fix]
 
       # Ruff - Formatting
       - id: ruff-format
@@ -41,6 +42,7 @@ repos:
         entry: uv run ruff format
         language: system
         types: [python]
+        args: [--check]
 
       # mypy - Type checking
       - id: mypy

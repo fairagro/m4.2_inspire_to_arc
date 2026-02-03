@@ -1,9 +1,20 @@
 """Mapper module to convert database rows to ARCTRL objects."""
 
+import json
+import logging
 from datetime import datetime
 from typing import Any, cast
 
-from arctrl import ArcAssay, ArcInvestigation, ArcStudy  # type: ignore[import-untyped]
+from arctrl import (  # type: ignore[import-untyped]
+    ArcAssay,
+    ArcInvestigation,
+    ArcStudy,
+    OntologyAnnotation,
+    Person,
+    Publication,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def map_investigation(row: dict[str, Any]) -> ArcInvestigation:
@@ -74,4 +85,65 @@ def map_assay(row: dict[str, Any]) -> ArcAssay:
     # once the database provides the necessary ontology information
     return ArcAssay.create(
         identifier=str(row["id"]),
+    )
+
+
+def map_contact(row: dict[str, Any]) -> Person:
+    """Map a database row to a Person object.
+
+    Args:
+        row: Dictionary containing contact data from DB
+
+    Returns:
+        Person object
+    """
+    roles = []
+    if row.get("roles"):
+        try:
+            roles_data = json.loads(row["roles"])
+            if isinstance(roles_data, list):
+                for r in roles_data:
+                    roles.append(
+                        OntologyAnnotation(
+                            name=r.get("term"),
+                            tsr=r.get("version"),
+                            tan=r.get("uri"),
+                        )
+                    )
+        except (json.JSONDecodeError, TypeError) as e:
+            # Fallback for invalid JSON or type mismatch, with logging
+            logger.warning(
+                "Could not parse roles JSON for contact with email '%s'. Error: %s",
+                row.get("email", "N/A"),
+                e,
+            )
+            pass
+
+    return Person.create(
+        first_name=row.get("first_name"),
+        last_name=row.get("last_name"),
+        mid_initials=row.get("mid_initials"),
+        email=row.get("email"),
+        phone=row.get("phone"),
+        fax=row.get("fax"),
+        address=row.get("address"),
+        affiliation=row.get("affiliation"),
+        roles=roles if roles else None,
+    )
+
+
+def map_publication(row: dict[str, Any]) -> Publication:
+    """Map a database row to a Publication object.
+
+    Args:
+        row: Dictionary containing publication data from DB
+
+    Returns:
+        Publication object
+    """
+    return Publication.create(
+        pub_med_id=row.get("pub_med_id"),
+        doi=row.get("doi"),
+        authors=row.get("authors"),
+        title=row.get("title"),
     )

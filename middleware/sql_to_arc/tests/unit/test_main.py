@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,6 +13,7 @@ from middleware.sql_to_arc.main import (
     DatasetContext,
     ProcessingStats,
     WorkerContext,
+    main,
     parse_args,
     process_investigations,
     process_single_dataset,
@@ -41,9 +43,45 @@ class TestParseArgs:
 
     def test_parse_args_ignores_unknown_args(self) -> None:
         """Test parse_args ignores pytest and other unknown arguments."""
-        with patch("sys.argv", ["prog", "-c", "config.yaml", "-v", "--tb=short"]):
+        with patch("sys.argv", ["prog", "-c", "config.yaml", "--unknown"]):
             args = parse_args()
             assert args.config == Path("config.yaml")
+
+    def test_parse_args_version(self) -> None:
+        """Test parse_args with version flag."""
+        with patch("sys.argv", ["prog", "--version"]):
+            args = parse_args()
+            assert args.version is True
+
+
+class TestMain:
+    """Test suite for main function."""
+
+    @pytest.mark.asyncio
+    async def test_main_version(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test main function with version flag."""
+        with (
+            patch("sys.argv", ["prog", "--version"]),
+            patch("middleware.sql_to_arc.main.version", return_value="1.2.3"),
+            patch("sys.exit") as mock_exit,
+        ):
+            await main()
+            captured = capsys.readouterr()
+            assert "sql_to_arc version: 1.2.3" in captured.out
+            mock_exit.assert_called_once_with(0)
+
+    @pytest.mark.asyncio
+    async def test_main_version_unknown(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test main function with version flag when package not installed."""
+        with (
+            patch("sys.argv", ["prog", "--version"]),
+            patch("middleware.sql_to_arc.main.version", side_effect=PackageNotFoundError),
+            patch("sys.exit") as mock_exit,
+        ):
+            await main()
+            captured = capsys.readouterr()
+            assert "sql_to_arc version: unknown" in captured.out
+            mock_exit.assert_called_once_with(0)
 
 
 # TestFetchAllInvestigations and other bulk fetchers removed as they are integrated into stream
