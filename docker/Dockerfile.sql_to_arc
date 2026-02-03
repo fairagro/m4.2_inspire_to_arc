@@ -15,8 +15,11 @@ ARG APP_VERSION=0.0.0
 
 # We prefer to build a wheel for our package first. This ensures we have a clean,
 # distributable artifact that contains only the necessary files.
-# We set SETUPTOOLS_SCM_PRETEND_VERSION so hatch-vcs can work without .git folder.
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} uv build --package sql_to_arc --wheel
+# We set HATCH_VCS_PRETEND_VERSION so hatch-vcs can work without .git folder.
+# We also set SETUPTOOLS_SCM_PRETEND_VERSION for compatibility with related tools.
+RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
+    SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+    uv build --package sql_to_arc --wheel
 
 
 # ---- Binary Build Stage ----
@@ -53,12 +56,16 @@ COPY middleware ./middleware
 #    as pre-built wheels on PyPI.
 # 3. Thus, we use 'uv sync' to create a virtual environment (.venv) and resolve all
 #    complex dependencies exactly as specified in the uv.lock.
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} uv sync --no-dev
+RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
+    SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+    uv sync --no-dev
 
 # 4. Finally, for packages like sql_to_arc that exist both as a workspace dependency
 #    and as a pre-built wheel, we explicitly 'uv pip install' the wheel. This ensures
 #    we use our optimized, pre-built package instead of the 'editable' source install.
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} uv pip install /tmp/wheels/*.whl pyinstaller
+RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
+    SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+    uv pip install /tmp/wheels/*.whl pyinstaller
 
 # Build standalone binary using the .venv's context.
 RUN . .venv/bin/activate && \

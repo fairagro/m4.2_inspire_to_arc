@@ -64,6 +64,7 @@ jobs:
       SemVer: ${{ steps.gitversion.outputs.semVer }}
       Major: ${{ steps.gitversion.outputs.major }}
       Minor: ${{ steps.gitversion.outputs.minor }}
+      Patch: ${{ steps.gitversion.outputs.patch }}
       components: ${{ inputs.components }}
     env:
       IS_FEATURE_BRANCH: ${{ startsWith(github.ref_name, 'feature/') }}
@@ -163,6 +164,7 @@ jobs:
             ${{ env.DOCKERHUB_AVAILABLE == 'true' && inputs.push_to_registry && format('{0}/{1}-{2}', env.DOCKERHUB_NAMESPACE, env.IMAGE_BASE_NAME, matrix.component) || '' }}
           tags: |
             type=semver,pattern={{version}},value=${{ needs.calculate-version.outputs.SemVer }}
+            type=raw,value=${{ needs.calculate-version.outputs.version }}
             type=raw,value=${{ needs.calculate-version.outputs.Major }}.${{ needs.calculate-version.outputs.Minor }},enable=${{ !contains(github.ref_name, 'feature/') }}
             type=raw,value=${{ needs.calculate-version.outputs.Major }},enable=${{ !contains(github.ref_name, 'feature/') }}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, 'feature/') }}
@@ -187,7 +189,7 @@ jobs:
           tags: ${{ env.DOCKERHUB_AVAILABLE == 'true' && inputs.push_to_registry && steps.meta.outputs.tags || format('local/{0}-{1}:{2}', env.IMAGE_BASE_NAME, matrix.component, needs.calculate-version.outputs.version) }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            APP_VERSION=v${{ needs.calculate-version.outputs.version }}
+            APP_VERSION=${{ needs.calculate-version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
