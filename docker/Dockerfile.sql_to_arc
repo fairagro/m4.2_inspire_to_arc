@@ -65,13 +65,12 @@ FROM alpine:3.23.3
 
 WORKDIR /middleware
 
-# Copy the entire directory created by --onedir
-COPY --from=binary-builder /build/dist/sql_to_arc /middleware/sql_to_arc
-
-# Create non-root user and group and fix permissions
+# Create non-root user and group
 RUN addgroup -S sql_to_arc && \
-    adduser -S sql_to_arc -G sql_to_arc && \
-    chown -R sql_to_arc:sql_to_arc /middleware
+    adduser -S -H -G sql_to_arc sql_to_arc
+
+# Copy the entire directory created by --onedir with correct ownership
+COPY --chown=sql_to_arc:sql_to_arc --from=binary-builder /build/dist/sql_to_arc /middleware/sql_to_arc
 
 USER sql_to_arc
 
