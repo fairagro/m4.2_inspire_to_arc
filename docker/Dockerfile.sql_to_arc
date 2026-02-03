@@ -4,7 +4,7 @@ FROM python:3.12.12-alpine3.23 AS package-builder
 WORKDIR /build
 
 # Copy project files needed for package build
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY middleware ./middleware
 
 # Upgrade pip and install uv
@@ -44,7 +44,7 @@ ARG APP_VERSION=0.0.0
 
 # Bring in the pre-built wheel and project metadata
 COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
 
 # We still need the source code because uv sync requires all workspace members (e.g., middleware/sql_to_arc)
 # to be physically present to validate the environment against the lockfile.
