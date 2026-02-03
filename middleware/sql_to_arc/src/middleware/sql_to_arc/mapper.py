@@ -1,6 +1,7 @@
 """Mapper module to convert database rows to ARCTRL objects."""
 
 import json
+import logging
 from datetime import datetime
 from typing import Any, cast
 
@@ -12,6 +13,8 @@ from arctrl import (  # type: ignore[import-untyped]
     Person,
     Publication,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def map_investigation(row: dict[str, Any]) -> ArcInvestigation:
@@ -107,8 +110,13 @@ def map_contact(row: dict[str, Any]) -> Person:
                             tan=r.get("uri"),
                         )
                     )
-        except (json.JSONDecodeError, TypeError):
-            # Fallback for invalid JSON or type mismatch
+        except (json.JSONDecodeError, TypeError) as e:
+            # Fallback for invalid JSON or type mismatch, with logging
+            logger.warning(
+                "Could not parse roles JSON for contact with email '%s'. Error: %s",
+                row.get("email", "N/A"),
+                e,
+            )
             pass
 
     return Person.create(
