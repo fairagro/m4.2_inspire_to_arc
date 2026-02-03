@@ -466,8 +466,7 @@ wheels = [
 
 [[package]]
 name = "m4-2-sql-to-arc"
-version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "sql-to-arc" },
 ]
@@ -1144,7 +1143,6 @@ dependencies = [
 
 [[package]]
 name = "sql-to-arc"
-version = "0.0.0"
 source = { editable = "middleware/sql_to_arc" }
 dependencies = [
     { name = "api-client" },

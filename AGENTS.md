@@ -1,11 +1,11 @@
 # AGENTS.md - Instructions for AI Assistants
 
-This file contains critical context about the FAIRagro Advanced Middleware API project for AI assistants (GitHub Copilot, Claude, etc.).
+This file contains critical context about the FAIRagro SQL-toARC project for AI assistants (GitHub Copilot, Claude, etc.).
 
 ## 📋 Tech Stack
 
 | Component | Version | Details |
-|-----------|---------|---------|
+| --------- | ------- | ------- |
 | Python | 3.12.12 | Primary language |
 | FastAPI | Latest | REST API framework |
 | Pydantic | V2 | Configuration validation |
@@ -228,3 +228,4 @@ Before making changes, consider:
 **Last Updated**: 2025-12-10
 **Current Branch**: feature/introduce_sql_to_arc
 **Maintainer Notes**: Keep this file updated when architectural decisions change
+ 
