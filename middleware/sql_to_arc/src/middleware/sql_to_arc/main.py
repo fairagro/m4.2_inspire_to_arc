@@ -24,7 +24,11 @@ from middleware.shared.config.config_wrapper import ConfigWrapper
 from middleware.shared.config.logging import configure_logging
 from middleware.shared.tracing import initialize_tracing
 from middleware.sql_to_arc.config import Config
-from middleware.sql_to_arc.mapper import map_assay, map_investigation, map_study
+from middleware.sql_to_arc.mapper import (
+    map_assay,
+    map_investigation,
+    map_study,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
