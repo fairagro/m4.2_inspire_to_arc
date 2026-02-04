@@ -26,6 +26,8 @@ dev = [
 
 [tool.uv.sources]
 sql_to_arc = { workspace = true }
+api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
+shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.uv.workspace]
 members = [
