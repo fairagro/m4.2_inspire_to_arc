@@ -56,22 +56,33 @@ COPY middleware ./middleware
 #    as pre-built wheels on PyPI.
 # 3. Thus, we use 'uv sync' to create a virtual environment (.venv) and resolve all
 #    complex dependencies exactly as specified in the uv.lock.
-RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
-    SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
     uv sync --no-dev
 
-# 4. Finally, for packages like sql_to_arc that exist both as a workspace dependency
-#    and as a pre-built wheel, we explicitly 'uv pip install' the wheel. This ensures
-#    we use our optimized, pre-built package instead of the 'editable' source install.
-RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
-    SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+# 4. Install the application wheel.
+#    This replaces the editable install from 'uv sync' with the optimized wheel.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
     uv pip install /tmp/wheels/*.whl pyinstaller
 
-# Build standalone binary using the .venv's context.
+# 5. FIX: Manually reinstall git dependencies using their INTERNAL names (underscore)
+#    to ensure proper namespace installation. We do this AFTER installing the wheel
+#    to ensure the namespace merging happens correctly.
 RUN . .venv/bin/activate && \
-    python -m PyInstaller --onedir \
+    uv pip install --force-reinstall \
+    "api_client @ git+https://github.com/fairagro/m4.2_advanced_middleware_api.git@main#subdirectory=middleware/api_client" \
+    "shared @ git+https://github.com/fairagro/m4.2_advanced_middleware_api.git@main#subdirectory=middleware/shared"
+
+# Build standalone binary using the .venv's context.
+# We point PyInstaller to the 'main.py' INSTALLED in site-packages.
+# Since we merged everything into site-packages/middleware, we can largely rely on auto-discovery.
+# --copy-metadata is still needed because the code checks its own version at runtime.
+RUN . .venv/bin/activate && \
+    .venv/bin/python -m PyInstaller --onedir \
     --name sql_to_arc \
-    /build/middleware/sql_to_arc/src/middleware/sql_to_arc/main.py
+    --copy-metadata sql_to_arc \
+    --copy-metadata api_client \
+    --copy-metadata shared \
+    .venv/lib/python3.12/site-packages/middleware/sql_to_arc/main.py
 
 
 # ---- Runtime Stage ----
