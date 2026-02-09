@@ -383,8 +383,8 @@ async def process_single_dataset(
             )
             # Use status from response if available (e.g., 'created', 'updated')
             status_text = "processed"
-            if response.arcs:
-                status_text = response.arcs[0].status.value
+            if response.arc:
+                status_text = response.arc.status.value
 
             logger.info(
                 "%s ARC %s successfully (RDI: %s).",
