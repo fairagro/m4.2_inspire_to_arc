@@ -1,44 +1,38 @@
 [project]
-name = "m4-2-advanced-middleware"
-version = "6.0.0"
-description = "The FAIRagro advanced middleware"
+name = "m4-2-sql-to-arc"
+dynamic = ["version"]
+description = "The FAIRagro SQL-to-ARC client"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "api",
-  "api_client",
-  "shared",
   "sql_to_arc",
-  "inspire_to_arc",
 ]
 
 [dependency-groups]
 dev = [
-  "fastapi[standard]>=0.116.1",
   "httpx>=0.28.1",
-  "pylint>=3.3.8",
-  "pytest>=8.4.1",
+  "pylint>=4.0.4",
+  "pytest>=9.0.2",
   "pytest-asyncio>=1.1.0",
   "pytest-cov>=7.0.0",
-  "mypy>=1.11.0",
-  "pytest-mypy-plugins>=3.0.0",
-  "bandit>=1.7.0",
-  "ruff>=0.1.0",
-  "types-pyyaml>=6.0.12.20250915",
-  "pre-commit>=4.0.0",
   "pytest-env>=1.2.0",
+  "pytest-mock>=3.10.0",
+  "mypy>=1.19.0",
+  "bandit>=1.7.0",
+  "ruff>=0.14.8",
+  "pre-commit>=4.0.0",
+  "respx>=0.20.0",
 ]
 
 [tool.uv.sources]
-api = { workspace = true }
-api_client = { workspace = true }
-shared = { workspace = true }
 sql_to_arc = { workspace = true }
-inspire_to_arc = { workspace = true }
+api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
+shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.uv.workspace]
-members = ["middleware/*"]
-exclude = ["middleware/tools"]
+members = [
+    "middleware/sql_to_arc",
+]
 
 [tool.ruff]
 # Exclude directories from linting and formatting
@@ -70,6 +64,7 @@ lint.select = [
   "SIM", # flake8-simplify
   "A",   # flake8-builtins
   "ARG", # flake8-unused-arguments
+  "PLR", # Pylint Refactor (inkl. complexity rules wie too-many-return-statements)
 ]
 
 # Maximale Zeilenlänge wie in pylint (Standard: 100)
@@ -106,15 +101,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
-
-# mypy_path defines where to look for packages (same as pytest pythonpath)
-mypy_path = [
-  "middleware/api/src",
-  "middleware/api_client/src",
-  "middleware/shared/src",
-  "middleware/sql_to_arc/src",
-  "middleware/inspire_to_arc/src",
-]
+mypy_path = "middleware/sql_to_arc/src"
 
 # Exclude directories from type checking
 exclude = [
@@ -133,6 +120,69 @@ exclude = [
 [tool.ruff.lint.pydocstyle]
 convention = "pep257" # oder "numpy", oder "google"
 
+[tool.pytest.ini_options]
+# Test discovery
+testpaths = ["middleware/*/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Output and behavior
+addopts = [
+    "-v",                        # Verbose output
+    "--strict-markers",          # Treat unregistered markers as errors
+    "--tb=short",                # Shorter traceback format
+    "--cov=middleware",          # Enable coverage for middleware packages
+    "--cov-report=term-missing", # Show missing lines in terminal
+    "--cov-report=html",         # Generate HTML coverage report
+    "--cov-report=xml",          # Generate XML coverage report (for CI)
+    "--cov-fail-under=80",       # Fail if coverage is below 80%
+]
+
+# Asyncio mode
+asyncio_mode = "auto"
+
+# Custom markers
+markers = [
+    "asyncio: marks tests as async",
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+# Coverage measurement settings
+source = ["middleware"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/venv/*",
+    "*/.pytest_cache/*",
+    "*/build/*",
+    "*/dist/*",
+    "*/*.egg-info/*",
+]
+branch = true  # Measure branch coverage
+
+[tool.coverage.report]
+# Coverage reporting settings
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [tool.pylint.format]
 max-line-length = 120
 
@@ -140,6 +190,8 @@ max-line-length = 120
 # Ignore directories
 ignore = [".venv", "venv", ".git", "__pycache__", "build", "dist"]
 ignore-patterns = ["^\\..*", ".*\\.egg-info"]
+# Fail if the score is below 8.0
+fail-under = 8.0
 
 [tool.pylint.messages_control]
 # Disable checks that are already covered by ruff
@@ -201,14 +253,13 @@ disable = [
     "C0301",  # line-too-long (handled by ruff formatter)
     "R0801",  # duplicate-code (can be noisy in tests)
 ]
-[tool.pytest.ini_options]
-pythonpath = [
-    "middleware/api/src",
-    "middleware/api_client/src",
-    "middleware/shared/src",
-    "middleware/sql_to_arc/src",
-    "middleware/inspire_to_arc/src",
-]
-markers = [
-    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
-]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+include = ["README.md"]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"

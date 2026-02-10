@@ -1,0 +1,103 @@
+# ---- Package Build Stage ----
+FROM python:3.12.12-alpine3.23 AS package-builder
+
+WORKDIR /build
+
+# Copy project files needed for package build
+COPY pyproject.toml uv.lock README.md LICENSE ./
+COPY middleware ./middleware
+
+# Upgrade pip and install uv
+RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
+
+# Declare build argument for versioning
+ARG APP_VERSION=0.0.0
+
+# We prefer to build a wheel for our package first. This ensures we have a clean,
+# distributable artifact that contains only the necessary files.
+# We set HATCH_VCS_PRETEND_VERSION so hatch-vcs can work without .git folder.
+# We also set SETUPTOOLS_SCM_PRETEND_VERSION for compatibility with related tools.
+RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
+    SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+    uv build --package sql_to_arc --wheel
+
+
+# ---- Binary Build Stage ----
+FROM python:3.12.12-alpine3.23 AS binary-builder
+
+# Install build tools for PyInstaller
+RUN apk add --no-cache \
+    build-base=0.5-r3 \
+    python3-dev=3.12.12-r0 \
+    libffi-dev=3.5.2-r0 \
+    openssl-dev=3.5.5-r0 \
+    cargo=1.91.1-r0 \
+    git=2.52.0-r0
+
+WORKDIR /build
+
+# Install uv core tool
+RUN pip install --no-cache-dir --upgrade pip==25.3 uv==0.9.27
+
+# Declare build argument for versioning
+ARG APP_VERSION=0.0.0
+
+# Bring in the pre-built wheel and project metadata
+COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
+COPY pyproject.toml uv.lock README.md LICENSE ./
+
+# We still need the source code because uv sync requires all workspace members (e.g., middleware/sql_to_arc)
+# to be physically present to validate the environment against the lockfile.
+COPY middleware ./middleware
+
+# Dependency Resolution Strategy:
+# 1. We would prefer to install everything as wheels for speed and reliability.
+# 2. However, some dependencies (especially git-based ones like api_client) are not available
+#    as pre-built wheels on PyPI.
+# 3. Thus, we use 'uv sync' to create a virtual environment (.venv) and resolve all
+#    complex dependencies exactly as specified in the uv.lock.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+    uv sync --no-dev
+
+# 4. Install the application wheel.
+#    This replaces the editable install from 'uv sync' with the optimized wheel.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
+    uv pip install /tmp/wheels/*.whl pyinstaller
+
+# 5. FIX: Manually reinstall git dependencies using their INTERNAL names (underscore)
+#    to ensure proper namespace installation. We do this AFTER installing the wheel
+#    to ensure the namespace merging happens correctly.
+RUN . .venv/bin/activate && \
+    uv pip install --force-reinstall \
+    "api_client @ git+https://github.com/fairagro/m4.2_advanced_middleware_api.git@main#subdirectory=middleware/api_client" \
+    "shared @ git+https://github.com/fairagro/m4.2_advanced_middleware_api.git@main#subdirectory=middleware/shared"
+
+# Build standalone binary using the .venv's context.
+# We point PyInstaller to the 'main.py' INSTALLED in site-packages.
+# Since we merged everything into site-packages/middleware, we can largely rely on auto-discovery.
+# --copy-metadata is still needed because the code checks its own version at runtime.
+RUN . .venv/bin/activate && \
+    .venv/bin/python -m PyInstaller --onedir \
+    --name sql_to_arc \
+    --copy-metadata sql_to_arc \
+    --copy-metadata api_client \
+    --copy-metadata shared \
+    .venv/lib/python3.12/site-packages/middleware/sql_to_arc/main.py
+
+
+# ---- Runtime Stage ----
+FROM alpine:3.23.3
+
+WORKDIR /middleware
+
+# Create non-root user and group
+RUN addgroup -S sql_to_arc && \
+    adduser -S -H -G sql_to_arc sql_to_arc
+
+# Copy the entire directory created by --onedir with correct ownership
+COPY --chown=sql_to_arc:sql_to_arc --from=binary-builder /build/dist/sql_to_arc /middleware/sql_to_arc
+
+USER sql_to_arc
+
+# Execute the binary inside the directory
+CMD ["/middleware/sql_to_arc/sql_to_arc"]

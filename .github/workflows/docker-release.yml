@@ -18,8 +18,8 @@ env:
   GIT_USER_EMAIL: ${{ vars.GIT_USER_EMAIL || 'github_pipeline@fairagro.net' }}
   IMAGE_BASE_NAME: ${{ vars.IMAGE_BASE_NAME || 'fairagro-advanced-middleware' }}
   DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE || 'zalf' }}
-  IMAGE_TITLE: ${{ vars.IMAGE_TITLE || 'FairAgro Advanced Middleware API' }}
-  IMAGE_DESCRIPTION: ${{ vars.IMAGE_DESCRIPTION || 'Advanced middleware API for FairAgro platform' }}
+  IMAGE_TITLE: ${{ vars.IMAGE_TITLE || 'FAIRagro SQL-to-ARC' }}
+  IMAGE_DESCRIPTION: ${{ vars.IMAGE_DESCRIPTION || 'Middleware for converting SQL metadata to ARC format for FAIRagro' }}
   # Derived static variables
   GITVERSION_TAG_PREFIX: ${{ vars.GITVERSION_TAG_PREFIX || '.*-docker-v' }}
   DOCKER_PLATFORMS: ${{ vars.DOCKER_PLATFORMS || 'linux/amd64' }}
@@ -39,7 +39,7 @@ jobs:
     with:
       push_to_registry: true
       version_bump: ${{ startsWith(github.ref_name, 'feature/') && 'patch' || (github.event.inputs.version_bump || 'patch') }}
-      components: '["api"]' # Add other components here in the future, e.g., '["api", "worker"]'
+      components: '["sql_to_arc"]' # Add other components here in the future, e.g., '["worker"]'
     secrets: inherit
 
   security-scan-release:
@@ -263,7 +263,7 @@ jobs:
       - name: Upload SBOMs as a single artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sboms
+          name: sboms-${{ matrix.component }}
           path: sboms/
 
   create-release:
@@ -287,11 +287,9 @@ jobs:
         if: env.RELEASE_TYPE == 'final'
         uses: actions/download-artifact@v4
         with:
-          name: sboms
+          pattern: sboms-*
           path: sboms/
-
-      # Note: SPDX SBOM is generated in security-scan-release job
-      # and downloaded as part of the SBOM artifact above
+          merge-multiple: true
 
       - name: Create version tag
         id: create_tag
@@ -326,7 +324,7 @@ jobs:
             ## Docker Release v${{ needs.docker-build-test.outputs.version }}
 
             **Docker Images**:
-            - `${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_BASE_NAME }}-api:${{ needs.docker-build-test.outputs.version }}`
+            - `${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_BASE_NAME }}-sql_to_arc:${{ needs.docker-build-test.outputs.version }}`
             **Image Digest**: `${{ needs.docker-build-test.outputs.image-digest }}`
 
             - ✅ Security scan completed (see Security tab)
@@ -343,10 +341,10 @@ jobs:
 
             ```bash
             # Build the image locally
-            git clone https://github.com/' }}${{ needs.docker-build-test.outputs.dockerhub-pushed == 'true' && format('{0}/{1}-api:{2}', env.DOCKERHUB_NAMESPACE, env.IMAGE_BASE_NAME, needs.docker-build-test.outputs.version) || format('{0}
+            git clone https://github.com/' }}${{ needs.docker-build-test.outputs.dockerhub-pushed == 'true' && format('{0}/{1}-sql_to_arc:{2}', env.DOCKERHUB_NAMESPACE, env.IMAGE_BASE_NAME, needs.docker-build-test.outputs.version) || format('{0}
             cd {1}
             git checkout {2}
-            docker build -t local/{3}-api:{4} -f docker/Dockerfile.api .', github.repository, github.repository, github.sha, env.IMAGE_BASE_NAME, needs.docker-build-test.outputs.version) }}
+            docker build -t local/{3}-sql_to_arc:{4} -f docker/Dockerfile.sql_to_arc .', github.repository, github.repository, github.sha, env.IMAGE_BASE_NAME, needs.docker-build-test.outputs.version) }}
             ```
           files: |
             sboms/*
@@ -389,65 +387,6 @@ jobs:
             --field draft=false
           echo "🎉 Release finalized successfully"
 
-  update-version:
-    name: Update pyproject.toml version
-    needs: [docker-build-test, create-release]
-    runs-on: ubuntu-latest
-    # Only run on main branch for final releases
-    if: github.ref_name == 'main' && needs.docker-build-test.result == 'success' && needs.create-release.result == 'success'
-    permissions:
-      contents: write
-      pull-requests: write
-
-    env:
-      TIMESTAMP: ${{ github.run_id }}${{ github.run_attempt }}
-      RELEASE_TAG: ${{ github.run_id }}${{ github.run_attempt }}-docker-v${{ needs.docker-build-test.outputs.version }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - name: Configure Git
-        run: |
-          git config user.name "${{ env.GIT_USER_NAME }}"
-          git config user.email "${{ env.GIT_USER_EMAIL }}"
-
-      - name: Update pyproject.toml version
-        env:
-          NEW_VERSION: ${{ needs.docker-build-test.outputs.version }}
-        run: |
-          echo "🔄 Updating pyproject.toml version to: $NEW_VERSION"
-
-          # Update version in pyproject.toml using sed
-          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
-
-          # Verify the change
-          echo "✅ Updated version:"
-          grep "^version = " pyproject.toml
-
-      - name: Create Pull Request for version update
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: bump version to ${{ needs.docker-build-test.outputs.version }} [skip ci]"
-          branch: chore/bump-version-${{ needs.docker-build-test.outputs.version }}
-          delete-branch: true
-          title: "chore: bump version to ${{ needs.docker-build-test.outputs.version }}"
-          body: |
-            Automated version update after release ${{ needs.docker-build-test.outputs.version }}
-
-            This PR updates `pyproject.toml` with the new version number.
-
-            **Auto-generated after**: Docker Release v${{ needs.docker-build-test.outputs.version }}
-            **Release Tag**: ${{ env.RELEASE_TAG }}
-            **Version bump type**: ${{ github.event.inputs.version_bump || 'patch' }}
-
-            > This PR was automatically created by the Docker Release workflow.
-          labels: ${{ github.event.inputs.version_bump || 'patch' }} version
-          base: main
 
   # currently there is no helm chart to update
   # update-helm-chart:
