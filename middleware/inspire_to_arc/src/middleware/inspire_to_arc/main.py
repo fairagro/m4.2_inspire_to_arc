@@ -52,10 +52,11 @@ async def run_harvest(config: Config) -> None:
                     # Batch upload
                     if len(batch) >= config.batch_size:
                         logger.info("Uploading batch of %d ARCs...", len(batch))
-                        await client.create_or_update_arcs(
-                            rdi=config.rdi,
-                            arcs=batch,
-                        )
+                        for arc in batch:
+                            await client.create_or_update_arc(
+                                rdi=config.rdi,
+                                arc=arc,
+                            )
                         batch = []
 
                     count += 1
@@ -67,7 +68,11 @@ async def run_harvest(config: Config) -> None:
             # Upload remaining
             if batch:
                 logger.info("Uploading final batch of %d ARCs...", len(batch))
-                await client.create_or_update_arcs(rdi=config.rdi, arcs=batch)
+                for arc in batch:
+                    await client.create_or_update_arc(
+                        rdi=config.rdi,
+                        arc=arc,
+                    )
 
             logger.info("Harvest complete. Processed %d records.", count)
 

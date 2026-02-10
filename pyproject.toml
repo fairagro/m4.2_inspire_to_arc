@@ -101,7 +101,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
-mypy_path = "middleware/sql_to_arc/src"
+mypy_path = "middleware/inspire_to_arc/src"
 
 # Exclude directories from type checking
 exclude = [
@@ -115,6 +115,18 @@ exclude = [
   ".mypy_cache",
   ".ruff_cache",
 ]
+
+[[tool.mypy.overrides]]
+module = "middleware.shared.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "middleware.api_client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "owslib.*"
+ignore_missing_imports = true
 
 # Docstring-Regeln aktivieren, damit es wie pylint C0114/15/16 meckert
 [tool.ruff.lint.pydocstyle]
