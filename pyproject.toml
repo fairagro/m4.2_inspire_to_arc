@@ -5,7 +5,7 @@ description = "The FAIRagro SQL-to-ARC client"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "sql_to_arc",
+  "inspire_to_arc",
 ]
 
 [dependency-groups]
@@ -25,13 +25,13 @@ dev = [
 ]
 
 [tool.uv.sources]
-sql_to_arc = { workspace = true }
+inspire_to_arc = { workspace = true }
 api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
 shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.uv.workspace]
 members = [
-    "middleware/sql_to_arc",
+    "middleware/inspire_to_arc",
 ]
 
 [tool.ruff]
