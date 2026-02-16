@@ -5,9 +5,9 @@ during Inspire record processing and conversion to Arc format.
 """
 
 
-class InpireToArcError(Exception):
+class InspireToArcError(Exception):
     """Base exception for Inspire to Arc middleware."""
 
 
-class SemanticError(InpireToArcError):
+class SemanticError(InspireToArcError):
     """Raised when there is a semantic error in the Inspire record processing."""

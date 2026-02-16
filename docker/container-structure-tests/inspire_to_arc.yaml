@@ -7,7 +7,7 @@ schemaVersion: 2.0.0
 # File existence tests
 fileExistenceTests:
   - name: 'SQL to ARC executable'
-    path: '/middleware/sql_to_arc/sql_to_arc'
+    path: '/middleware/inspire_to_arc/inspire_to_arc'
     shouldExist: true
     permissions: '-rwxr-xr-x'  # Executable
 
@@ -27,11 +27,11 @@ fileExistenceTests:
 fileContentTests:
   - name: 'Non-root user created'
     path: '/etc/passwd'
-    expectedContents: ['sql_to_arc:.*']
+    expectedContents: ['inspire_to_arc:.*']
 
   - name: 'Non-root group created'
     path: '/etc/group'
-    expectedContents: ['sql_to_arc:.*']
+    expectedContents: ['inspire_to_arc:.*']
 
 # Command tests
 commandTests:
@@ -57,7 +57,7 @@ commandTests:
 
   - name: 'SQL to ARC binary is executable'
     command: 'test'
-    args: ['-x', '/middleware/sql_to_arc']
+    args: ['-x', '/middleware/inspire_to_arc']
     exitCode: 0
 
   - name: 'Minimal package count (Alpine security)'
@@ -68,5 +68,5 @@ commandTests:
 
 # Metadata tests
 metadataTest:
-  user: 'sql_to_arc'
+  user: 'inspire_to_arc'
   workdir: '/middleware'
