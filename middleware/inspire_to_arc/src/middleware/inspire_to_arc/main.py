@@ -44,30 +44,41 @@ async def run_harvest(config: Config) -> None:
             for item in records_iter:
                 # Handle potential processing errors emitted by the harvester
                 if isinstance(item, RecordProcessingError):
-                    logger.error("Failed to parse/fetch record %s: %s", item.record_id, item.original_error or item)
+                    record_id = item.record_id
+                    record_url = csw_client.get_record_url(record_id)
+                    logger.error(
+                        "Failed to parse/fetch record %s: %s (URL: %s)",
+                        record_id,
+                        item.original_error or item,
+                        record_url,
+                    )
                     continue
 
                 record = item
+                record_url = csw_client.get_record_url(record.identifier)
+
                 # Log the INSPIRE identifier (UUID)
-                logger.info("Processing record: %s", record.identifier)
+                logger.debug("Processing record %s (URL: %s)", record.identifier, record_url)
 
                 try:
                     # Map to ARC
                     arc = mapper.map_record(record)
 
                     # Upload ARC
-                    logger.info("Uploading ARC for record: %s", record.identifier)
+                    logger.debug("Uploading ARC for record: %s", record.identifier)
                     response = await client.create_or_update_arc(
                         rdi=config.rdi,
                         arc=arc,
                     )
 
                     arc_id = response.arc.id if hasattr(response, "arc") and hasattr(response.arc, "id") else response
-                    logger.info("Successfully uploaded record %s (ARC ID: %s)", record.identifier, arc_id)
+                    logger.info(
+                        "Successfully uploaded record %s (ARC ID: %s) - URL: %s", record.identifier, arc_id, record_url
+                    )
                     count += 1
 
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    logger.error("Failed to map/upload record %s: %s", record.identifier, e)
+                    logger.error("Failed to map/upload record %s: %s (URL: %s)", record.identifier, e, record_url)
                     continue
 
             logger.info("Harvest complete. Processed %d records.", count)

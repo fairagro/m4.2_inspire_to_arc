@@ -4,6 +4,7 @@ import contextlib
 import logging
 from collections.abc import Iterator
 from typing import Annotated, cast
+from urllib.parse import urlencode
 
 from owslib.catalogue.csw2 import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
@@ -205,6 +206,29 @@ class CSWClient:
         except (OSError, TimeoutError, ValueError) as e:
             raise ConnectionError(f"Failed to connect to CSW at {self._url}: {e}") from e
 
+    def get_record_url(self, record_id: str) -> str:
+        """
+        Construct a URL to fetch a single record in ISO 19139 format.
+
+        Args:
+            record_id: The identifier of the record.
+
+        Returns:
+            The CSW GetRecordById URL.
+        """
+        params = {
+            "service": "CSW",
+            "version": "2.0.2",
+            "request": "GetRecordById",
+            "id": record_id,
+            "outputSchema": "http://www.isotc211.org/2005/gmd",
+            "elementSetName": "full",
+        }
+        # Handle base URL that might already contain query parameters
+        base = self._url.rstrip("?")
+        sep = "&" if "?" in base else "?"
+        return f"{base}{sep}{urlencode(params)}"
+
     def get_records(
         self,
         _query: str | None = None,
@@ -264,6 +288,10 @@ class CSWClient:
         """Retrieve records using standard paged harvesting."""
         yield from self._get_records_paged(max_records)
 
+    def _calculate_batch_size(self, max_records: int, records_yielded: int) -> int:
+        """Calculate the size of the next batch to fetch."""
+        return min(10, max_records - records_yielded)
+
     def _get_records_paged(
         self, max_records: int, constraints: list | None = None
     ) -> Iterator[InspireRecord | RecordProcessingError]:
@@ -276,65 +304,119 @@ class CSWClient:
             if batch_size <= 0:
                 break
 
-            if not self._fetch_record_batch(batch_size, start_position, constraints):
+            # 1. Fetch Dublin Core IDs first (as a stable reference)
+            dc_ids = self._fetch_dc_ids(batch_size, start_position, constraints)
+            if not dc_ids:
                 break
 
+            # 2. Fetch ISO records for the same batch
+            if not self._fetch_iso_batch(batch_size, start_position, constraints):
+                break
+
+            # 3. Yield records, using DC IDs for identification
             count = 0
-            for item in self._yield_records_from_batch(max_records, records_yielded):
+            for item in self._yield_records_with_stable_ids(dc_ids, max_records, records_yielded):
                 yield item
                 if not isinstance(item, RecordProcessingError):
                     count += 1
             records_yielded += count
-            if self._csw and self._csw.records:
-                start_position += len(self._csw.records)
+
+            start_position += len(dc_ids)
 
             if self._all_records_fetched(start_position):
                 break
 
-    def _calculate_batch_size(self, max_records: int, records_yielded: int) -> int:
-        """Calculate the size of the next batch to fetch."""
-        return min(10, max_records - records_yielded)
-
-    def _fetch_record_batch(self, batch_size: int, start_position: int, constraints: list | None) -> bool:
-        """Fetch a batch of records from the CSW service. Returns True if successful."""
-        common_kwargs = {
-            "maxrecords": batch_size,
-            "startposition": start_position,
-            "esn": "full",
-            "outputschema": "http://www.isotc211.org/2005/gmd",
-        }
-
+    def _fetch_dc_ids(self, batch_size: int, start_position: int, constraints: list | None) -> list[str]:
+        """Fetch stable identifiers using Dublin Core schema."""
         if self._csw is None:
             self.connect()
         if self._csw is None:
             raise RuntimeError("CSW client is not initialized.")
 
         try:
-            # Always use getrecords2() (getrecords is deprecated)
+            kwargs = {
+                "maxrecords": batch_size,
+                "startposition": start_position,
+                "esn": "full",
+            }
             if constraints:
-                self._csw.getrecords2(constraints=constraints, **common_kwargs)
+                self._csw.getrecords2(constraints=constraints, **kwargs)
             else:
-                self._csw.getrecords2(**common_kwargs)
+                self._csw.getrecords2(**kwargs)
+
+            return [rec.identifier for rec in self._csw.records.values()]
+        except (OSError, TimeoutError, ValueError) as e:
+            logger.warning("Failed to fetch DC IDs for batch at %d: %s", start_position, e)
+            return []
+
+    def _fetch_iso_batch(self, batch_size: int, start_position: int, constraints: list | None) -> bool:
+        """Fetch a batch of records in ISO 19139 format."""
+        if self._csw is None:
+            self.connect()
+        if self._csw is None:
+            raise RuntimeError("CSW client is not initialized.")
+
+        try:
+            kwargs = {
+                "maxrecords": batch_size,
+                "startposition": start_position,
+                "esn": "full",
+                "outputschema": "http://www.isotc211.org/2005/gmd",
+            }
+            if constraints:
+                self._csw.getrecords2(constraints=constraints, **kwargs)
+            else:
+                self._csw.getrecords2(**kwargs)
             return True
         except (OSError, TimeoutError, ValueError) as e:
-            raise ConnectionError(f"Failed to fetch records from CSW: {e}") from e
+            raise ConnectionError(f"Failed to fetch ISO records from CSW: {e}") from e
 
-    def _yield_records_from_batch(
-        self, max_records: int, records_yielded: int
+    def _yield_records_with_stable_ids(
+        self, dc_ids: list[str], max_records: int, records_yielded: int
     ) -> Iterator[InspireRecord | RecordProcessingError]:
-        """Yield parsed records from the current batch."""
+        """
+        Yield parsed ISO records using stable DC IDs as reference.
+
+        Note: This relies on the server returning records in the same order for both
+        Dublin Core and ISO 19139 requests. While standard-compliant, some servers
+        might require an explicit SortBy clause if the order is inconsistent.
+        """
         if self._csw is None or not self._csw.records:
             return
-        for uuid, record in self._csw.records.items():
+
+        # Get ISO records as a list to ensure stable indexing
+        iso_items = list(self._csw.records.items())
+
+        for i, (owslib_id, record) in enumerate(iso_items):
             if records_yielded >= max_records:
                 break
+
+            # Use DC ID as the stable identifier
+            stable_id = dc_ids[i] if i < len(dc_ids) else owslib_id
+
             if isinstance(record, MD_Metadata):
+                # Validate alignment: if ISO record has an ID, it should match the DC ID
+                iso_id = getattr(record, "identifier", None)
+                if iso_id and not iso_id.startswith("owslib_random_") and iso_id != stable_id:
+                    logger.warning(
+                        "Alignment mismatch at index %d: DC ID is '%s' but ISO ID is '%s'. "
+                        "The server might return records in inconsistent order; consider using SortBy.",
+                        i,
+                        stable_id,
+                        iso_id,
+                    )
+                    # Proceed with ISO ID as it's the actual identifier from the metadata block
+                    stable_id = iso_id
+
                 try:
-                    yield self._parse_iso_record(record, record_uuid=uuid)
+                    # Inject stable ID if metadata is missing its own
+                    if not getattr(record, "identifier", None):
+                        record.identifier = stable_id
+
+                    yield self._parse_iso_record(record, record_uuid=stable_id)
                     records_yielded += 1
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    # We yield instead of raising to allow the generator to continue
-                    yield RecordProcessingError(str(e), uuid, original_error=e)
+                    yield RecordProcessingError(str(e), stable_id, original_error=e)
 
     def _all_records_fetched(self, start_position: int) -> bool:
         """Check if all available records have been fetched."""
