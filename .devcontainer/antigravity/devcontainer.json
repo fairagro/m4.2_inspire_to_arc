@@ -72,10 +72,6 @@
 		}
 	},
 
-	"containerEnv": {
-		"UV_LINK_MODE": "copy"
-	},
-
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
@@ -97,7 +93,6 @@
 				"mhutchie.git-graph",
 				"donjayamanne.githistory",
 				"codezombiech.gitignore",
-				"github.copilot",
 				"github.copilot-chat",
 				"matangover.mypy",
 				"charliermarsh.ruff",
