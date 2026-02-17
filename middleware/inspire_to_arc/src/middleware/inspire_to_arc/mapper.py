@@ -163,24 +163,36 @@ class InspireMapper:
         for comment in comments:
             inv.Comments.append(Comment(comment))
 
-    def _generate_comments(self, record: InspireRecord) -> list[str]:  # noqa: C901
+    def _generate_comments(self, record: InspireRecord) -> list[str]:
         """Generate metadata-level comments from record fields."""
         comments = []
-        if record.parent_identifier:
-            comments.append(f"Parent Identifier: {record.parent_identifier}")
-        if record.hierarchy:
-            comments.append(f"Hierarchy Level: {record.hierarchy}")
-        if record.dataset_uri:
-            comments.append(f"Dataset URI: {record.dataset_uri}")
+
+        # Simple string-based fields
+        fields = [
+            ("Parent Identifier", record.parent_identifier),
+            ("Hierarchy Level", record.hierarchy),
+            ("Dataset URI", record.dataset_uri),
+            ("Language", record.language),
+            ("Character Set", record.charset),
+            ("Edition", record.edition),
+            ("Status", record.status),
+        ]
+        for label, value in fields:
+            if value:
+                comments.append(f"{label}: {value}")
+
+        # Metadata Standard (with version)
         if record.metadata_standard_name:
             std = record.metadata_standard_name
             if record.metadata_standard_version:
                 std += f" v{record.metadata_standard_version}"
             comments.append(f"Metadata Standard: {std}")
-        if record.language:
-            comments.append(f"Language: {record.language}")
-        if record.charset:
-            comments.append(f"Character Set: {record.charset}")
+
+        self._add_constraint_comments(comments, record)
+        return comments
+
+    def _add_constraint_comments(self, comments: list[str], record: InspireRecord) -> None:
+        """Add constraint-related comments."""
         if record.access_constraints:
             comments.append(f"Access Constraints: {', '.join(record.access_constraints)}")
         if record.use_constraints:
@@ -188,12 +200,7 @@ class InspireMapper:
         if record.classification:
             comments.append(f"Classification: {', '.join(record.classification)}")
         if record.other_constraints:
-            comments.append(f"Other Constraints: {'; '.join(record.other_constraints[:3])}")  # Limit to 3
-        if record.edition:
-            comments.append(f"Edition: {record.edition}")
-        if record.status:
-            comments.append(f"Status: {record.status}")
-        return comments
+            comments.append(f"Other Constraints: {'; '.join(record.other_constraints[:3])}")
 
     def map_study(self, record: InspireRecord) -> ArcStudy:
         """Map to ArcStudy with process-oriented protocols."""
