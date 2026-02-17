@@ -1,7 +1,7 @@
 [project]
-name = "m4-2-sql-to-arc"
+name = "m4.2_inspire_to_arc"
 dynamic = ["version"]
-description = "The FAIRagro SQL-to-ARC client"
+description = "The FAIRagro INSPIRE-to-ARC client"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

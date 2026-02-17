@@ -41,7 +41,7 @@ middleware/
   ├── shared/         ConfigWrapper (24 tests, 86.53% coverage)
   ├── api/            FastAPI REST API
   ├── api_client/     HTTP Client (26 tests)
-  └── sql_to_arc/     SQL to ARC Converter
+  └── inspire_to_arc/     SQL to ARC Converter
 
 scripts/
   ├── load-env.sh    Main entry point (sets up hooks)
@@ -90,5 +90,5 @@ cd dev_environment && ./start.sh --build
 ---
 
 **Last Updated**: 2025-12-10
-**Branch**: feature/introduce_sql_to_arc
+**Branch**: feature/introduce_inspire_to_arc
 **For more details**: See AGENTS.md in project root

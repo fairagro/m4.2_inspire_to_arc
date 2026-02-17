@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Start sql_to_arc locally with a local DB, but connecting to an EXTERNAL Middleware API.
+# Start inspire_to_arc locally with a local DB, but connecting to an EXTERNAL Middleware API.
 #
 # Usage:
 #   ./start-external.sh              # Start services
@@ -18,10 +18,8 @@ if [[ "${1:-}" == "--build" ]]; then
   BUILD_FLAG="--build"
 fi
 
-echo "==> Starting SQL-to-ARC with EXTERNAL API..."
-echo "    - Local PostgreSQL will be started"
-echo "    - Database will be initialized with Edaphobase dump"
-echo "    - SQL-to-ARC will connect to the API configured in config.yaml"
+echo "==> Starting INSPIRE-to-ARC Harvester..."
+echo "    - Harvester will connect to the API configured in config.yaml"
 echo "    - Using client certificates: client.crt, client.key"
 echo ""
 

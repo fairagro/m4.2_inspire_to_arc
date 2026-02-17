@@ -19,7 +19,7 @@ ARG APP_VERSION=0.0.0
 # We also set SETUPTOOLS_SCM_PRETEND_VERSION for compatibility with related tools.
 RUN HATCH_VCS_PRETEND_VERSION=${APP_VERSION#v} \
     SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION#v} \
-    uv build --package sql_to_arc --wheel
+    uv build --package inspire_to_arc --wheel
 
 
 # ---- Binary Build Stage ----
@@ -46,7 +46,7 @@ ARG APP_VERSION=0.0.0
 COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
 COPY pyproject.toml uv.lock README.md LICENSE ./
 
-# We still need the source code because uv sync requires all workspace members (e.g., middleware/sql_to_arc)
+# We still need the source code because uv sync requires all workspace members (e.g., middleware/inspire_to_arc)
 # to be physically present to validate the environment against the lockfile.
 COPY middleware ./middleware
 
@@ -78,11 +78,11 @@ RUN . .venv/bin/activate && \
 # --copy-metadata is still needed because the code checks its own version at runtime.
 RUN . .venv/bin/activate && \
     .venv/bin/python -m PyInstaller --onedir \
-    --name sql_to_arc \
-    --copy-metadata sql_to_arc \
+    --name inspire_to_arc \
+    --copy-metadata inspire_to_arc \
     --copy-metadata api_client \
     --copy-metadata shared \
-    .venv/lib/python3.12/site-packages/middleware/sql_to_arc/main.py
+    .venv/lib/python3.12/site-packages/middleware/inspire_to_arc/main.py
 
 
 # ---- Runtime Stage ----
@@ -91,13 +91,13 @@ FROM alpine:3.23.3
 WORKDIR /middleware
 
 # Create non-root user and group
-RUN addgroup -S sql_to_arc && \
-    adduser -S -H -G sql_to_arc sql_to_arc
+RUN addgroup -S inspire_to_arc && \
+    adduser -S -H -G inspire_to_arc inspire_to_arc
 
 # Copy the entire directory created by --onedir with correct ownership
-COPY --chown=sql_to_arc:sql_to_arc --from=binary-builder /build/dist/sql_to_arc /middleware/sql_to_arc
+COPY --chown=inspire_to_arc:inspire_to_arc --from=binary-builder /build/dist/inspire_to_arc /middleware/inspire_to_arc
 
-USER sql_to_arc
+USER inspire_to_arc
 
 # Execute the binary inside the directory
-CMD ["/middleware/sql_to_arc/sql_to_arc"]
+CMD ["/middleware/inspire_to_arc/inspire_to_arc"]

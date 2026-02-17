@@ -30,7 +30,6 @@ async def run_harvest(config: Config) -> None:
 
     # 3. Harvest and Process
     async with ApiClient(config.api_client) as client:
-        batch = []
         count = 0
 
         try:
@@ -47,32 +46,19 @@ async def run_harvest(config: Config) -> None:
                 try:
                     # Map to ARC
                     arc = mapper.map_record(record)
-                    batch.append(arc)
 
-                    # Batch upload
-                    if len(batch) >= config.batch_size:
-                        logger.info("Uploading batch of %d ARCs...", len(batch))
-                        for arc in batch:
-                            await client.create_or_update_arc(
-                                rdi=config.rdi,
-                                arc=arc,
-                            )
-                        batch = []
+                    # Upload ARC
+                    logger.info("Uploading ARC: %s", record.identifier)
+                    await client.create_or_update_arc(
+                        rdi=config.rdi,
+                        arc=arc,
+                    )
 
                     count += 1
 
                 except (AttributeError, ValueError) as e:
                     logger.error("Failed to map/process record %s: %s", getattr(record, "identifier", "unknown"), e)
                     continue
-
-            # Upload remaining
-            if batch:
-                logger.info("Uploading final batch of %d ARCs...", len(batch))
-                for arc in batch:
-                    await client.create_or_update_arc(
-                        rdi=config.rdi,
-                        arc=arc,
-                    )
 
             logger.info("Harvest complete. Processed %d records.", count)
 

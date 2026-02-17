@@ -13,7 +13,6 @@ class Config(ConfigBase):
 
     csw_url: Annotated[str, Field(description="URL of the CSW endpoint")]
     rdi: Annotated[str, Field(description="RDI identifier (e.g. inspire-import)")] = "inspire-import"
-    batch_size: Annotated[int, Field(description="Batch size for ARC uploads", gt=0)] = 10
     query: Annotated[str | None, Field(description="CQL query string for filtering records")] = None
     xml_request: Annotated[str | None, Field(description="Raw XML request for advanced queries")] = None
     api_client: Annotated[ApiClientConfig, Field(description="API Client configuration")]
