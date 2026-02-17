@@ -11,7 +11,6 @@ from pathlib import Path
 
 from middleware.api_client import ApiClient
 from middleware.inspire_to_arc.config import Config
-from middleware.inspire_to_arc.errors import SemanticError
 from middleware.inspire_to_arc.harvester import CSWClient
 from middleware.inspire_to_arc.mapper import InspireMapper
 
@@ -49,7 +48,7 @@ async def run_harvest(config: Config) -> None:
                     arc = mapper.map_record(record)
 
                     # Upload ARC
-                    logger.info("Uploading ARC: %s", record.identifier)
+                    logger.info("Uploading ARC for record %s (ARC ID: %s)", record.identifier, arc.Identifier)
                     await client.create_or_update_arc(
                         rdi=config.rdi,
                         arc=arc,
@@ -57,8 +56,9 @@ async def run_harvest(config: Config) -> None:
 
                     count += 1
 
-                except (AttributeError, ValueError, SemanticError) as e:
-                    logger.error("Failed to map/process record %s: %s", getattr(record, "identifier", "unknown"), e)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    record_id = getattr(record, "identifier", None) or "unknown"
+                    logger.error("Failed to map/process record %s: %s", record_id, e)
                     continue
 
             logger.info("Harvest complete. Processed %d records.", count)

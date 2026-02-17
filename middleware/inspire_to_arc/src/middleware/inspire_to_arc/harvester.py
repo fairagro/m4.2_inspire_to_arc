@@ -251,9 +251,11 @@ class CSWClient:
             for uuid, record in self._csw.records.items():
                 if isinstance(record, MD_Metadata):
                     try:
-                        yield self._parse_iso_record(record)
-                    except Exception as e:
-                        logger.error("Failed to parse record %s: %s", uuid, e)
+                        parsed_record = self._parse_iso_record(record)
+                        yield parsed_record
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        record_id = getattr(record, "identifier", None) or uuid or "unknown"
+                        logger.error("Failed to parse record %s: %s", record_id, e)
 
     def _get_records_by_constraints(self, constraints: list, max_records: int) -> Iterator[InspireRecord]:
         """Retrieve records using FES constraints with pagination."""
@@ -327,10 +329,12 @@ class CSWClient:
                 break
             if isinstance(record, MD_Metadata):
                 try:
-                    yield self._parse_iso_record(record)
+                    parsed_record = self._parse_iso_record(record)
+                    yield parsed_record
                     records_yielded += 1
-                except Exception as e:
-                    logger.error("Failed to parse record %s: %s", uuid, e)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    record_id = getattr(record, "identifier", None) or uuid or "unknown"
+                    logger.error("Failed to parse record %s: %s", record_id, e)
 
     def _all_records_fetched(self, start_position: int) -> bool:
         """Check if all available records have been fetched."""
