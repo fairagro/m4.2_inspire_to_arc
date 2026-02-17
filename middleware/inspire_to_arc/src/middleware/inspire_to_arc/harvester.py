@@ -3,13 +3,11 @@
 import contextlib
 import logging
 from collections.abc import Iterator
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
-from owslib.csw import CatalogueServiceWeb  # type: ignore
+from owslib.catalogue.csw2 import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
 from pydantic import BaseModel, Field
-
-from .errors import SemanticError
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +190,7 @@ class CSWClient:
         """
         self._url = url
         self._timeout = timeout
-        self._csw = None  # type: ignore
+        self._csw: Any = None  # type: ignore
 
     def connect(self) -> None:
         """Connect to the CSW service."""
@@ -359,7 +357,7 @@ class CSWClient:
             # Get all records count using getrecords2
             self._csw.getrecords2(maxrecords=1, esn="brief")
 
-        return self._csw.results.get("matches", 0)
+        return int(self._csw.results.get("matches", 0))
 
     def _parse_iso_record(self, iso: MD_Metadata) -> InspireRecord:
         """Parse an OWSLib MD_Metadata object into an InspireRecord."""
@@ -434,9 +432,11 @@ class CSWClient:
     def _extract_title(self, identification: MD_DataIdentification | None) -> str:
         """Extract title from ISO record."""
         if identification is None or getattr(identification, "title", None) is None:
-            raise SemanticError("Record is missing a title in its identification section.")
+            logger.warning("Record is missing a title in its identification section. Using 'Untitled Record'.")
+            return "Untitled Record"
         if not isinstance(identification.title, str):
-            raise SemanticError("Record title is not a string.")
+            logger.warning("Record title is not a string. Using 'Untitled Record'.")
+            return "Untitled Record"
         return identification.title
 
     def _extract_identification_str(self, item: str, identification: MD_DataIdentification | None) -> str | None:

@@ -86,7 +86,7 @@ def mock_iso_record() -> MagicMock:
 def test_csw_client_init() -> None:
     client = CSWClient("http://example.com/csw")
     assert client._url == "http://example.com/csw"  # pylint: disable=protected-access
-    assert client._timeout == 30  # pylint: disable=protected-access
+    assert client._timeout == 30  # pylint: disable=protected-access  # noqa: PLR2004
 
 
 def test_csw_client_connect(mock_csw_cls: MagicMock) -> None:
@@ -158,6 +158,17 @@ def test_parse_iso_record_minimal(mock_iso_record: MagicMock) -> None:
     assert rec.spatial_extent is None
     assert rec.temporal_extent is None
     assert rec.lineage is None
+
+
+def test_parse_iso_record_missing_title(mock_iso_record: MagicMock) -> None:
+    """Test parsing a record with missing title should fallback to 'Untitled Record'."""
+    mock_iso_record.identification.title = None
+
+    client = CSWClient("http://dummy")
+    rec = client._parse_iso_record(mock_iso_record)  # pylint: disable=protected-access
+
+    assert rec.identifier == "uuid-123"
+    assert rec.title == "Untitled Record"
 
 
 def test_extract_contacts(mock_iso_record: MagicMock) -> None:

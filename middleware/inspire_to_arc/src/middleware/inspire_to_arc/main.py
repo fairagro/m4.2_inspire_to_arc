@@ -11,6 +11,7 @@ from pathlib import Path
 
 from middleware.api_client import ApiClient
 from middleware.inspire_to_arc.config import Config
+from middleware.inspire_to_arc.errors import SemanticError
 from middleware.inspire_to_arc.harvester import CSWClient
 from middleware.inspire_to_arc.mapper import InspireMapper
 
@@ -56,7 +57,7 @@ async def run_harvest(config: Config) -> None:
 
                     count += 1
 
-                except (AttributeError, ValueError) as e:
+                except (AttributeError, ValueError, SemanticError) as e:
                     logger.error("Failed to map/process record %s: %s", getattr(record, "identifier", "unknown"), e)
                     continue
 
