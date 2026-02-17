@@ -3,7 +3,7 @@
 import contextlib
 import logging
 from collections.abc import Iterator
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 from owslib.catalogue.csw2 import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
@@ -192,7 +192,7 @@ class CSWClient:
         """
         self._url = url
         self._timeout = timeout
-        self._csw: Any = None  # type: ignore
+        self._csw: CatalogueServiceWeb | None = None
 
     def connect(self) -> None:
         """Connect to the CSW service."""
@@ -254,7 +254,15 @@ class CSWClient:
                         parsed_record = self._parse_iso_record(record)
                         yield parsed_record
                     except Exception as e:  # pylint: disable=broad-exception-caught
-                        record_id = getattr(record, "identifier", None) or uuid or "unknown"
+                        record_id = (
+                            (
+                                record.identifier
+                                if record and hasattr(record, "identifier") and record.identifier
+                                else None
+                            )
+                            or uuid
+                            or "unknown"
+                        )
                         logger.error("Failed to parse record %s: %s", record_id, e)
 
     def _get_records_by_constraints(self, constraints: list, max_records: int) -> Iterator[InspireRecord]:
@@ -333,7 +341,11 @@ class CSWClient:
                     yield parsed_record
                     records_yielded += 1
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    record_id = getattr(record, "identifier", None) or uuid or "unknown"
+                    record_id = (
+                        (record.identifier if record and hasattr(record, "identifier") and record.identifier else None)
+                        or uuid
+                        or "unknown"
+                    )
                     logger.error("Failed to parse record %s: %s", record_id, e)
 
     def _all_records_fetched(self, start_position: int) -> bool:
@@ -369,7 +381,12 @@ class CSWClient:
             # Get all records count using getrecords2
             self._csw.getrecords2(maxrecords=1, esn="brief")
 
-        return int(self._csw.results.get("matches", 0))
+        matches = self._csw.results.get("matches", 0)
+        if isinstance(matches, (int, str)):
+            return int(matches)
+        if isinstance(matches, list) and matches:
+            return int(matches[0])
+        return 0
 
     def _parse_iso_record(self, iso: MD_Metadata) -> InspireRecord:
         """Parse an OWSLib MD_Metadata object into an InspireRecord."""

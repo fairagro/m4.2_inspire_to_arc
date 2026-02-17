@@ -41,6 +41,7 @@ async def run_harvest(config: Config) -> None:
             )
 
             for record in records_iter:
+                # Log the INSPIRE identifier (UUID)
                 logger.info("Processing record: %s", record.identifier)
 
                 try:
@@ -48,12 +49,13 @@ async def run_harvest(config: Config) -> None:
                     arc = mapper.map_record(record)
 
                     # Upload ARC
-                    logger.info("Uploading ARC for record %s (ARC ID: %s)", record.identifier, arc.Identifier)
-                    await client.create_or_update_arc(
+                    logger.info("Uploading ARC for record: %s", record.identifier)
+                    arc_id = await client.create_or_update_arc(
                         rdi=config.rdi,
                         arc=arc,
                     )
 
+                    logger.info("Successfully uploaded record %s (ARC ID: %s)", record.identifier, arc_id)
                     count += 1
 
                 except Exception as e:  # pylint: disable=broad-exception-caught
