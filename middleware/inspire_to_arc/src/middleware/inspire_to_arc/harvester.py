@@ -9,6 +9,8 @@ from owslib.catalogue.csw2 import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
 from pydantic import BaseModel, Field
 
+from .errors import SemanticError
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,7 +114,7 @@ class InspireRecord(BaseModel):
     # Core identification (existing fields)
     identifier: str
     title: str
-    abstract: str | None = None
+    abstract: str
     date_stamp: str | None = None
     keywords: Annotated[list[str], Field(default_factory=list)]
     topic_categories: Annotated[list[str], Field(default_factory=list)]
@@ -246,9 +248,12 @@ class CSWClient:
             return
         self._csw.getrecords2(xml=xml_request)
         if self._csw.records:
-            for _uuid, record in self._csw.records.items():
+            for uuid, record in self._csw.records.items():
                 if isinstance(record, MD_Metadata):
-                    yield self._parse_iso_record(record)
+                    try:
+                        yield self._parse_iso_record(record)
+                    except Exception as e:
+                        logger.error("Failed to parse record %s: %s", uuid, e)
 
     def _get_records_by_constraints(self, constraints: list, max_records: int) -> Iterator[InspireRecord]:
         """Retrieve records using FES constraints with pagination."""
@@ -317,12 +322,15 @@ class CSWClient:
         """Yield parsed records from the current batch."""
         if self._csw is None or not self._csw.records:
             return
-        for _uuid, record in self._csw.records.items():
+        for uuid, record in self._csw.records.items():
             if records_yielded >= max_records:
                 break
             if isinstance(record, MD_Metadata):
-                yield self._parse_iso_record(record)
-                records_yielded += 1
+                try:
+                    yield self._parse_iso_record(record)
+                    records_yielded += 1
+                except Exception as e:
+                    logger.error("Failed to parse record %s: %s", uuid, e)
 
     def _all_records_fetched(self, start_position: int) -> bool:
         """Check if all available records have been fetched."""
@@ -369,7 +377,7 @@ class CSWClient:
             # Core identification (existing fields)
             identifier=identifier,
             title=self._extract_title(identification),
-            abstract=self._extract_identification_str("abstract", identification),
+            abstract=self._extract_abstract(identification),
             date_stamp=iso.datestamp,
             keywords=self._extract_identification_list("keywords", identification),
             topic_categories=self._extract_identification_list("topiccategory", identification),
@@ -432,12 +440,18 @@ class CSWClient:
     def _extract_title(self, identification: MD_DataIdentification | None) -> str:
         """Extract title from ISO record."""
         if identification is None or getattr(identification, "title", None) is None:
-            logger.warning("Record is missing a title in its identification section. Using 'Untitled Record'.")
-            return "Untitled Record"
+            raise SemanticError("Record is missing a title in its identification section.")
         if not isinstance(identification.title, str):
-            logger.warning("Record title is not a string. Using 'Untitled Record'.")
-            return "Untitled Record"
+            raise SemanticError("Record title is not a string.")
         return identification.title
+
+    def _extract_abstract(self, identification: MD_DataIdentification | None) -> str:
+        """Extract abstract from ISO record."""
+        if identification is None or getattr(identification, "abstract", None) is None:
+            raise SemanticError("Record is missing an abstract in its identification section.")
+        if not isinstance(identification.abstract, str):
+            raise SemanticError("Record abstract is not a string.")
+        return identification.abstract
 
     def _extract_identification_str(self, item: str, identification: MD_DataIdentification | None) -> str | None:
         """Extract a string attribute from ISO record."""

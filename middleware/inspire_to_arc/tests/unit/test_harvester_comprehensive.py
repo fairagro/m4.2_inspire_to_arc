@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from owslib.iso import MD_Metadata  # type: ignore
 
+from middleware.inspire_to_arc.errors import SemanticError
 from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
 
 
@@ -142,7 +143,6 @@ def test_get_records_empty(mock_csw_cls: MagicMock) -> None:
 def test_parse_iso_record_minimal(mock_iso_record: MagicMock) -> None:
     """Test parsing a record with minimal fields."""
     # Remove optional fields
-    mock_iso_record.identification.abstract = None
     mock_iso_record.identification.keywords = []
     mock_iso_record.identification.bbox = None
     mock_iso_record.identification.temporalextent_start = None
@@ -154,21 +154,28 @@ def test_parse_iso_record_minimal(mock_iso_record: MagicMock) -> None:
 
     assert rec.identifier == "uuid-123"
     assert rec.title == "Test Title"
-    assert rec.abstract is None
+    assert rec.abstract == "Test Abstract"
     assert rec.spatial_extent is None
     assert rec.temporal_extent is None
     assert rec.lineage is None
 
 
 def test_parse_iso_record_missing_title(mock_iso_record: MagicMock) -> None:
-    """Test parsing a record with missing title should fallback to 'Untitled Record'."""
+    """Test parsing a record with missing title should raise SemanticError."""
     mock_iso_record.identification.title = None
 
     client = CSWClient("http://dummy")
-    rec = client._parse_iso_record(mock_iso_record)  # pylint: disable=protected-access
+    with pytest.raises(SemanticError, match="missing a title"):
+        client._parse_iso_record(mock_iso_record)  # pylint: disable=protected-access
 
-    assert rec.identifier == "uuid-123"
-    assert rec.title == "Untitled Record"
+
+def test_parse_iso_record_missing_abstract(mock_iso_record: MagicMock) -> None:
+    """Test parsing a record with missing abstract should raise SemanticError."""
+    mock_iso_record.identification.abstract = None
+
+    client = CSWClient("http://dummy")
+    with pytest.raises(SemanticError, match="missing an abstract"):
+        client._parse_iso_record(mock_iso_record)  # pylint: disable=protected-access
 
 
 def test_extract_contacts(mock_iso_record: MagicMock) -> None:
@@ -214,3 +221,73 @@ def test_extract_distribution_formats(mock_iso_record: MagicMock) -> None:
     assert len(rec.distribution_formats) == 1
     fmt = rec.distribution_formats[0]
     assert fmt.name == "CSV"
+
+
+def test_get_records_skip_invalid_records(mock_csw_cls: MagicMock, mock_iso_record: MagicMock) -> None:
+    """Test that invalid records are skipped in get_records."""
+    mock_instance = MagicMock()
+    mock_csw_cls.return_value = mock_instance
+
+    # Create a valid record and an invalid one (missing title)
+    valid_record = mock_iso_record
+    invalid_record = MagicMock(spec=MD_Metadata)
+    invalid_record.identifier = "uuid-invalid"
+    invalid_record.identification = MagicMock()
+    invalid_record.identification.title = None
+
+    mock_instance.records = {
+        "uuid-valid": valid_record,
+        "uuid-invalid": invalid_record,
+    }
+    mock_instance.results = {"matches": 2}
+    mock_instance.results = {"matches": 2}
+
+    # Patch isinstance to make MD_Metadata check pass for both
+    original_isinstance = isinstance
+
+    def mock_isinstance(obj: object, cls: type) -> bool:
+        if cls == MD_Metadata:
+            return True
+        return original_isinstance(obj, cls)
+
+    client = CSWClient("http://example.com/csw")
+    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+        records = list(client.get_records())
+
+    # Should only return the valid record
+    assert len(records) == 1
+    assert records[0].identifier == "uuid-123"
+
+
+def test_get_records_skip_generic_exception(mock_csw_cls: MagicMock, mock_iso_record: MagicMock) -> None:
+    """Test that records causing generic exceptions are skipped."""
+    mock_instance = MagicMock()
+    mock_csw_cls.return_value = mock_instance
+
+    valid_record = mock_iso_record
+    error_record = MagicMock(spec=MD_Metadata)
+    error_record.identifier = "uuid-error"
+    # This will cause a generic error during extraction
+    error_record.identification = None
+
+    mock_instance.records = {
+        "uuid-valid": valid_record,
+        "uuid-error": error_record,
+    }
+    mock_instance.results = {"matches": 2}
+
+    # Patch isinstance
+    original_isinstance = isinstance
+
+    def mock_isinstance(obj: object, cls: type) -> bool:
+        if cls == MD_Metadata:
+            return True
+        return original_isinstance(obj, cls)
+
+    client = CSWClient("http://example.com/csw")
+    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+        records = list(client.get_records())
+
+    # Should only return the valid record
+    assert len(records) == 1
+    assert records[0].identifier == "uuid-123"
