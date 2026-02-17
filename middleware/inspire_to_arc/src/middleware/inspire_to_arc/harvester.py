@@ -9,7 +9,7 @@ from owslib.catalogue.csw2 import CatalogueServiceWeb  # type: ignore
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
 from pydantic import BaseModel, Field
 
-from .errors import SemanticError
+from .errors import RecordProcessingError, SemanticError
 
 logger = logging.getLogger(__name__)
 
@@ -203,8 +203,7 @@ class CSWClient:
                 csw_title = getattr(self._csw.identification, "title", None)
             logger.info("Connected to CSW: %s", csw_title)
         except (OSError, TimeoutError, ValueError) as e:
-            logger.error("Failed to connect to CSW at %s: %s", self._url, e)
-            raise
+            raise ConnectionError(f"Failed to connect to CSW at {self._url}: {e}") from e
 
     def get_records(
         self,
@@ -212,7 +211,7 @@ class CSWClient:
         xml_request: str | bytes | None = None,
         constraints: list | None = None,
         max_records: int = 10,
-    ) -> Iterator[InspireRecord]:
+    ) -> Iterator[InspireRecord | RecordProcessingError]:
         """
         Retrieve records from the CSW.
 
@@ -223,13 +222,12 @@ class CSWClient:
             max_records: Maximum number of records to retrieve.
 
         Yields:
-            InspireRecord objects.
+            InspireRecord or RecordProcessingError objects.
         """
         if self._csw is None:
             self.connect()
         if self._csw is None:
-            logger.error("CSW client is not initialized.")
-            return
+            raise RuntimeError("CSW client is not initialized.")
 
         if xml_request:
             yield from self._get_records_by_xml(xml_request)
@@ -238,43 +236,37 @@ class CSWClient:
         else:
             yield from self._get_records_standard(max_records)
 
-    def _get_records_by_xml(self, xml_request: str | bytes) -> Iterator[InspireRecord]:
+    def _get_records_by_xml(self, xml_request: str | bytes) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using a raw XML request."""
         logger.info("Using raw XML request for harvesting.")
         if self._csw is None:
             self.connect()
         if self._csw is None:
-            logger.error("CSW client is not initialized.")
-            return
+            raise RuntimeError("CSW client is not initialized.")
         self._csw.getrecords2(xml=xml_request)
         if self._csw.records:
             for uuid, record in self._csw.records.items():
                 if isinstance(record, MD_Metadata):
                     try:
-                        parsed_record = self._parse_iso_record(record)
-                        yield parsed_record
+                        yield self._parse_iso_record(record, record_uuid=uuid)
                     except Exception as e:  # pylint: disable=broad-exception-caught
-                        record_id = (
-                            (
-                                record.identifier
-                                if record and hasattr(record, "identifier") and record.identifier
-                                else None
-                            )
-                            or uuid
-                            or "unknown"
-                        )
-                        logger.error("Failed to parse record %s: %s", record_id, e)
+                        # We yield instead of raising to allow the generator to continue
+                        yield RecordProcessingError(str(e), uuid, original_error=e)
 
-    def _get_records_by_constraints(self, constraints: list, max_records: int) -> Iterator[InspireRecord]:
+    def _get_records_by_constraints(
+        self, constraints: list, max_records: int
+    ) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using FES constraints with pagination."""
         logger.info("Using FES constraints for harvesting.")
         yield from self._get_records_paged(max_records, constraints=constraints)
 
-    def _get_records_standard(self, max_records: int) -> Iterator[InspireRecord]:
+    def _get_records_standard(self, max_records: int) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using standard paged harvesting."""
         yield from self._get_records_paged(max_records)
 
-    def _get_records_paged(self, max_records: int, constraints: list | None = None) -> Iterator[InspireRecord]:
+    def _get_records_paged(
+        self, max_records: int, constraints: list | None = None
+    ) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using pagination."""
         start_position = 0
         records_yielded = 0
@@ -288,9 +280,10 @@ class CSWClient:
                 break
 
             count = 0
-            for record in self._yield_records_from_batch(max_records, records_yielded):
-                yield record
-                count += 1
+            for item in self._yield_records_from_batch(max_records, records_yielded):
+                yield item
+                if not isinstance(item, RecordProcessingError):
+                    count += 1
             records_yielded += count
             if self._csw and self._csw.records:
                 start_position += len(self._csw.records)
@@ -314,8 +307,7 @@ class CSWClient:
         if self._csw is None:
             self.connect()
         if self._csw is None:
-            logger.error("CSW client is not initialized.")
-            return False
+            raise RuntimeError("CSW client is not initialized.")
 
         try:
             # Always use getrecords2() (getrecords is deprecated)
@@ -325,10 +317,11 @@ class CSWClient:
                 self._csw.getrecords2(**common_kwargs)
             return True
         except (OSError, TimeoutError, ValueError) as e:
-            logger.error("Failed to fetch records from CSW: %s", e)
-            return False
+            raise ConnectionError(f"Failed to fetch records from CSW: {e}") from e
 
-    def _yield_records_from_batch(self, max_records: int, records_yielded: int) -> Iterator[InspireRecord]:
+    def _yield_records_from_batch(
+        self, max_records: int, records_yielded: int
+    ) -> Iterator[InspireRecord | RecordProcessingError]:
         """Yield parsed records from the current batch."""
         if self._csw is None or not self._csw.records:
             return
@@ -337,16 +330,11 @@ class CSWClient:
                 break
             if isinstance(record, MD_Metadata):
                 try:
-                    parsed_record = self._parse_iso_record(record)
-                    yield parsed_record
+                    yield self._parse_iso_record(record, record_uuid=uuid)
                     records_yielded += 1
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    record_id = (
-                        (record.identifier if record and hasattr(record, "identifier") and record.identifier else None)
-                        or uuid
-                        or "unknown"
-                    )
-                    logger.error("Failed to parse record %s: %s", record_id, e)
+                    # We yield instead of raising to allow the generator to continue
+                    yield RecordProcessingError(str(e), uuid, original_error=e)
 
     def _all_records_fetched(self, start_position: int) -> bool:
         """Check if all available records have been fetched."""
@@ -388,10 +376,13 @@ class CSWClient:
             return int(matches[0])
         return 0
 
-    def _parse_iso_record(self, iso: MD_Metadata) -> InspireRecord:
+    def _parse_iso_record(self, iso: MD_Metadata, record_uuid: str) -> InspireRecord:
         """Parse an OWSLib MD_Metadata object into an InspireRecord."""
-        # Ensure identifier is always a string, fallback to "unknown" if None or not a string
-        identifier = iso.identifier if isinstance(iso.identifier, str) and iso.identifier else "unknown"
+        # Ensure identifier is always an actual string from ISO metadata
+        if not iso.identifier or not isinstance(iso.identifier, str):
+            raise SemanticError(f"Record {record_uuid} is missing a valid identifier (gmd:fileIdentifier).")
+
+        identifier = iso.identifier
         identification = self._extract_identification(iso)
 
         return InspireRecord(

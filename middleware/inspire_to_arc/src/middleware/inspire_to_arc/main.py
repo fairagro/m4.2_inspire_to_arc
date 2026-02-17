@@ -11,6 +11,7 @@ from pathlib import Path
 
 from middleware.api_client import ApiClient
 from middleware.inspire_to_arc.config import Config
+from middleware.inspire_to_arc.errors import RecordProcessingError
 from middleware.inspire_to_arc.harvester import CSWClient
 from middleware.inspire_to_arc.mapper import InspireMapper
 
@@ -40,7 +41,13 @@ async def run_harvest(config: Config) -> None:
                 max_records=1000000,  # Use a large number or implement proper pagination loop in main
             )
 
-            for record in records_iter:
+            for item in records_iter:
+                # Handle potential processing errors emitted by the harvester
+                if isinstance(item, RecordProcessingError):
+                    logger.error("Failed to parse/fetch record %s: %s", item.record_id, item.original_error or item)
+                    continue
+
+                record = item
                 # Log the INSPIRE identifier (UUID)
                 logger.info("Processing record: %s", record.identifier)
 
@@ -50,17 +57,17 @@ async def run_harvest(config: Config) -> None:
 
                     # Upload ARC
                     logger.info("Uploading ARC for record: %s", record.identifier)
-                    arc_id = await client.create_or_update_arc(
+                    response = await client.create_or_update_arc(
                         rdi=config.rdi,
                         arc=arc,
                     )
 
+                    arc_id = response.arc.id if hasattr(response, "arc") and hasattr(response.arc, "id") else response
                     logger.info("Successfully uploaded record %s (ARC ID: %s)", record.identifier, arc_id)
                     count += 1
 
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    record_id = getattr(record, "identifier", None) or "unknown"
-                    logger.error("Failed to map/process record %s: %s", record_id, e)
+                    logger.error("Failed to map/upload record %s: %s", record.identifier, e)
                     continue
 
             logger.info("Harvest complete. Processed %d records.", count)

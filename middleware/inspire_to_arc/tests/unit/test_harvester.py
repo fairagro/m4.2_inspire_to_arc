@@ -98,5 +98,6 @@ def test_get_records_xml(mock_csw_cls: MagicMock) -> None:
     mock_csw_instance.getrecords2.assert_called_once_with(xml=xml_query)
 
     assert len(records) == 1
+    assert isinstance(records[0], InspireRecord)
     assert records[0].identifier == "uuid-xml"
     assert records[0].title == "XML Title"
