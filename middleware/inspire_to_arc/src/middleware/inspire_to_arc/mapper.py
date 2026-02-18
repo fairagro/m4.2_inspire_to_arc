@@ -284,8 +284,18 @@ class InspireMapper:
             cells.append(CompositeCell.term(OntologyAnnotation(name=dist_str)))
 
         if headers:
+            # Add Input Column
+            table.AddColumn(
+                CompositeHeader.input(IOType.source()),
+                [CompositeCell.free_text("Geographic Region")],
+            )
             for i, header in enumerate(headers):
                 table.AddColumn(header, [cells[i]])
+            # Add Output Column
+            table.AddColumn(
+                CompositeHeader.output(IOType.sample()),
+                [CompositeCell.free_text("Selected Location")],
+            )
             return table
         return None
 
@@ -317,12 +327,21 @@ class InspireMapper:
             headers.append(CompositeHeader.parameter(OntologyAnnotation(name="Acquisition Date")))
             cells.append(CompositeCell.term(OntologyAnnotation(name=dates_str)))
 
-        # Platform/Sensor (from acquisition metadata - would need to be extracted)
         # NOTE: acquisition is complex nested - not implemented in extraction phase
 
         if headers:
+            # Add Input Column
+            table.AddColumn(
+                CompositeHeader.input(IOType.sample()),
+                [CompositeCell.free_text("Selected Location")],
+            )
             for i, header in enumerate(headers):
                 table.AddColumn(header, [cells[i]])
+            # Add Output Column
+            table.AddColumn(
+                CompositeHeader.output(IOType.data()),
+                [CompositeCell.create_data_from_string("Raw Data")],
+            )
             return table
         return None
 
@@ -372,15 +391,34 @@ class InspireMapper:
             cells.append(CompositeCell.term(OntologyAnnotation(name=dates_str)))
 
         if headers:
+            # Add Input Column (Data column -> Data cell)
+            table.AddColumn(
+                CompositeHeader.input(IOType.data()),
+                [CompositeCell.create_data_from_string("Raw Data")],
+            )
             for i, header in enumerate(headers):
                 table.AddColumn(header, [cells[i]])
+            # Add Output Column (Data column -> Data cell)
+            table.AddColumn(
+                CompositeHeader.output(IOType.data()),
+                [CompositeCell.create_data_from_string("Processed Data")],
+            )
             return table
 
         # If no headers, create minimal protocol with just a note
         if record.lineage or record.dates:
-            headers.append(CompositeHeader.parameter(OntologyAnnotation(name="Note")))
-            cells.append(CompositeCell.term(OntologyAnnotation(name="Data processing details from INSPIRE metadata")))
-            table.AddColumn(headers[0], [cells[0]])
+            table.AddColumn(
+                CompositeHeader.input(IOType.data()),
+                [CompositeCell.create_data_from_string("Raw Data")],
+            )
+            table.AddColumn(
+                CompositeHeader.parameter(OntologyAnnotation(name="Note")),
+                [CompositeCell.term(OntologyAnnotation(name="Data processing details from INSPIRE metadata"))],
+            )
+            table.AddColumn(
+                CompositeHeader.output(IOType.data()),
+                [CompositeCell.create_data_from_string("Processed Data")],
+            )
             return table
 
         return None
@@ -415,7 +453,13 @@ class InspireMapper:
 
         table = ArcTable.init("Measurement")
         # Add Input column (e.g., "Sample" or "Source")
-        table.AddColumn(CompositeHeader.input(IOType.source()), [CompositeCell.free_text("Dataset Source")])
+        # In arctrl-python:
+        # - Source/Sample columns are NOT Data columns (IsDataColumn=False) -> use free_text
+        # - Data columns ARE Data columns (IsDataColumn=True) -> use create_data
+        table.AddColumn(
+            CompositeHeader.input(IOType.source()),
+            [CompositeCell.free_text("Dataset Source")],
+        )
 
         # Combine all outputs into one or more unique columns
         # To avoid "duplicate header" error, we join all links into one Output [Data] column if they are many
@@ -429,7 +473,11 @@ class InspireMapper:
 
         if outputs:
             # We use newline to separate multiple links in one cell
-            table.AddColumn(CompositeHeader.output(IOType.data()), [CompositeCell.free_text(" | ".join(outputs))])
+            # Output [Data] is a Data Column -> MUST use Data Cell
+            table.AddColumn(
+                CompositeHeader.output(IOType.data()),
+                [CompositeCell.create_data_from_string(" | ".join(outputs))],
+            )
 
         return table
 

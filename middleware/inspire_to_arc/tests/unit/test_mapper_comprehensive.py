@@ -230,8 +230,8 @@ def test_create_spatial_sampling_complex(mapper: InspireMapper, sample_record: I
     table = mapper._create_spatial_sampling_protocol(sample_record)  # pylint: disable=protected-access
 
     assert table is not None
-    # BBox, CRS, Scale, Distance
-    assert table.ColumnCount == 4  # noqa: PLR2004
+    # Input, BBox, CRS, Scale, Distance, Output
+    assert table.ColumnCount == 6  # noqa: PLR2004
 
 
 def test_create_data_processing_complex(mapper: InspireMapper, sample_record: InspireRecord) -> None:
@@ -243,8 +243,8 @@ def test_create_data_processing_complex(mapper: InspireMapper, sample_record: In
 
     assert table is not None
     assert table.Name == "Data Processing"
-    # Lineage, Conformance, Format, Processing Date
-    assert table.ColumnCount == 4  # noqa: PLR2004
+    # Input, Lineage, Conformance, Format, Processing Date, Output
+    assert table.ColumnCount == 6  # noqa: PLR2004
 
 
 def test_add_person_comments_branches(mapper: InspireMapper) -> None:
