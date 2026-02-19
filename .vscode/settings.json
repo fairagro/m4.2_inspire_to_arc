@@ -31,12 +31,18 @@
   "ruff.configuration": "./pyproject.toml",
   "ruff.path": ["uv", "run", "ruff"],
   "ruff.importStrategy": "fromEnvironment",
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  "python.analysis.extraPaths": [
+    "middleware/api/src",
+    "middleware/api_client/src",
+    "middleware/shared/src",
+    "middleware/sql_to_arc/src",
+    "middleware/inspire_to_arc/src"
+  ],
 
   // Pylint Extension Settings
   "pylint.args": [
     "--rcfile=${workspaceFolder}/pyproject.toml"
   ],
-  "pylint.importStrategy": "fromEnvironment",
-
-  "python-envs.defaultEnvManager": "ms-python.python:venv"
+  "pylint.importStrategy": "fromEnvironment"
 }

@@ -1,0 +1,29 @@
+name: Feature Pull Request
+
+permissions:
+  contents: read
+
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - 'feature/*'
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      version_bump: 'patch'
+      components: '["inspire_to_arc"]'
+    secrets: inherit
+
+  check:
+    name: Check
+    needs: build
+    uses: ./.github/workflows/reusable-check.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      components: '["inspire_to_arc"]'
+    secrets: inherit

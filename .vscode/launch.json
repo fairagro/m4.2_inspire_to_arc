@@ -5,25 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "sql_to_arc",
+            "name": "inspire_to_arc",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/middleware/sql_to_arc/src/middleware/sql_to_arc/main.py",
+            "program": "${workspaceFolder}/middleware/inspire_to_arc/src/middleware/inspire_to_arc/main.py",
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/dev_environment/.env",
             "args": [
                 "-c",
-                "${workspaceFolder}/dev_environment/config.yaml"
+                "${workspaceFolder}/dev_environment/config.local.yaml"
             ]
-        },
-        {
-            "name": "rocrate2arc.py",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "tools/rocrate2arc.py",
-            "console": "integratedTerminal",
-            "args": "ro_crates/test.json scratch/test_ARC",
-            "justMyCode": false,
         },
         {
             "name": "Debug Unit Tests",

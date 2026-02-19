@@ -1,0 +1,37 @@
+csw_url: "https://gdk.gdi-de.org/gdi-de/srv/ger/csw"
+rdi: "inspire-import"
+batch_size: 5
+query: "type='dataset'"
+api_client:
+  api_url: "http://localhost:8000"
+  client_cert_path: "/path/to/cert.pem"
+  client_key_path: "/path/to/key.pem"
+  verify_ssl: false
+
+# So sieht eine von ChatGPT erzeugte CSW-Abfrage aus. Ich vermute, die laesst sich
+# in in den obigen query string umwandeln.
+# <?xml version="1.0" encoding="UTF-8"?>
+# <csw:GetRecords
+#     xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+#     xmlns:ogc="http://www.opengis.net/ogc"
+#     service="CSW"
+#     version="2.0.2"
+#     resultType="results"
+#     outputFormat="application/xml"
+#     outputSchema="http://www.isotc211.org/2005/gmd"
+#     startPosition="1"
+#     maxRecords="50">
+
+#   <csw:Query typeNames="csw:Record">
+#     <csw:ElementSetName>full</csw:ElementSetName>
+#     <csw:Constraint version="1.1.0">
+#       <ogc:Filter>
+#         <ogc:PropertyIsEqualTo>
+#           <ogc:PropertyName>dc:publisher</ogc:PropertyName>
+#           <ogc:Literal>Deutscher Wetterdienst</ogc:Literal>
+#         </ogc:PropertyIsEqualTo>
+#       </ogc:Filter>
+#     </csw:Constraint>
+#   </csw:Query>
+
+# </csw:GetRecords>

@@ -1,11 +1,11 @@
 [project]
-name = "m4-2-sql-to-arc"
+name = "m4.2_inspire_to_arc"
 dynamic = ["version"]
-description = "The FAIRagro SQL-to-ARC client"
+description = "The FAIRagro INSPIRE-to-ARC client"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "sql_to_arc",
+  "inspire_to_arc",
 ]
 
 [dependency-groups]
@@ -25,13 +25,13 @@ dev = [
 ]
 
 [tool.uv.sources]
-sql_to_arc = { workspace = true }
+inspire_to_arc = { workspace = true }
 api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
 shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.uv.workspace]
 members = [
-    "middleware/sql_to_arc",
+    "middleware/inspire_to_arc",
 ]
 
 [tool.ruff]
@@ -47,6 +47,7 @@ exclude = [
   ".ruff_cache",
   "build",
   "dist",
+  "py.typed"
 ]
 
 # Welche Regel-Sets aktiviert sind:
@@ -86,6 +87,10 @@ known-first-party = ["middleware"]
 force-single-line = false
 combine-as-imports = true
 
+# Per-file-ignores for test directories
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D103"]  # missing-function-docstring in test files
+
 # Black and isort replaced by ruff format - configurations removed to avoid conflicts
 
 [tool.mypy]
@@ -96,7 +101,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
-mypy_path = "middleware/sql_to_arc/src"
+mypy_path = "middleware/inspire_to_arc/src"
 
 # Exclude directories from type checking
 exclude = [
@@ -110,6 +115,18 @@ exclude = [
   ".mypy_cache",
   ".ruff_cache",
 ]
+
+[[tool.mypy.overrides]]
+module = "middleware.shared.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "middleware.api_client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "owslib.*"
+ignore_missing_imports = true
 
 # Docstring-Regeln aktivieren, damit es wie pylint C0114/15/16 meckert
 [tool.ruff.lint.pydocstyle]

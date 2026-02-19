@@ -8,8 +8,8 @@ xml_request: ~
 api_client:
   api_url: "https://middleware.fairagro.net"
   timeout: 60.0
-  client_cert_path: "/etc/inspire_to_arc/client.crt"
-  client_key_path: "/run/secrets/client.key"
+  client_cert_path: "/workspaces/m4.2_inspire_to_arc-vscode/dev_environment/client.crt"
+  client_key_path: "/workspaces/m4.2_inspire_to_arc-vscode/dev_environment/client.decrypted.key"
   verify_ssl: true
   max_retries: 3
   retry_backoff_factor: 1.0
