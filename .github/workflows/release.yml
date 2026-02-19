@@ -19,7 +19,7 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       version_bump: ${{ inputs.version_bump }}
-      components: '["sql_to_arc"]'
+      components: '["inspire_to_arc"]'
     secrets: inherit
 
   check:
@@ -28,7 +28,7 @@ jobs:
     uses: ./.github/workflows/reusable-check.yml
     with:
       version: ${{ needs.build.outputs.version }}
-      components: '["sql_to_arc"]'
+      components: '["inspire_to_arc"]'
     secrets: inherit
 
   release:
@@ -37,6 +37,6 @@ jobs:
     uses: ./.github/workflows/reusable-release.yml
     with:
       version: ${{ needs.build.outputs.version }}
-      components: '["sql_to_arc"]'
+      components: '["inspire_to_arc"]'
       release_type: 'final'
     secrets: inherit

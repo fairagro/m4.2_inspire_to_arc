@@ -11,7 +11,7 @@ on:
         description: 'A JSON string array of components to check'
         required: false
         type: string
-        default: '["sql_to_arc"]'
+        default: '["inspire_to_arc"]'
 
 env:
   IMAGE_BASE_NAME: ${{ vars.IMAGE_BASE_NAME || 'fairagro-advanced-middleware' }}
@@ -91,7 +91,7 @@ jobs:
           uv run pytest \
             middleware/*/tests/unit/ \
             middleware/*/tests/integration/ \
-            --cov=sql_to_arc \
+            --cov=inspire_to_arc \
             --cov-report=xml \
             --junitxml=pytest-report.xml
 

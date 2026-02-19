@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       version_bump: 'patch'
-      components: '["sql_to_arc"]'
+      components: '["inspire_to_arc"]'
     secrets: inherit
 
   check:
@@ -21,5 +21,5 @@ jobs:
     uses: ./.github/workflows/reusable-check.yml
     with:
       version: ${{ needs.build.outputs.version }}
-      components: '["sql_to_arc"]'
+      components: '["inspire_to_arc"]'
     secrets: inherit

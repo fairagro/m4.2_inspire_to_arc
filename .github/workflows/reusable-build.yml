@@ -12,7 +12,7 @@ on:
         description: 'A JSON string array of components to build'
         required: false
         type: string
-        default: '["sql_to_arc"]'
+        default: '["inspire_to_arc"]'
     outputs:
       version:
         description: 'Calculated version'
