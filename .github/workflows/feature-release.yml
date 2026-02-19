@@ -1,5 +1,9 @@
 name: Feature Release
 
+permissions:
+  contents: read
+
+
 on:
   workflow_dispatch:
 

@@ -1,5 +1,9 @@
 name: Reusable Check
 
+permissions:
+  contents: read
+
+
 on:
   workflow_call:
     inputs:
@@ -25,7 +29,6 @@ jobs:
         python-version: ['3.12']
     permissions:
       contents: read
-      security-events: write
 
     steps:
       - name: Checkout code

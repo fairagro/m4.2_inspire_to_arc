@@ -1,5 +1,9 @@
 name: Reusable Release
 
+permissions:
+  contents: read
+
+
 on:
   workflow_call:
     inputs:

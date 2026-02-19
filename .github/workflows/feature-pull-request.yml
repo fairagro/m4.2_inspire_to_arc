@@ -1,5 +1,9 @@
 name: Feature Pull Request
 
+permissions:
+  contents: read
+
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
