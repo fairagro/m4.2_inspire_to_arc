@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - major
+        - minor
+        - patch
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      version_bump: ${{ inputs.version_bump }}
+      components: '["sql_to_arc"]'
+    secrets: inherit
+
+  check:
+    name: Check
+    needs: build
+    uses: ./.github/workflows/reusable-check.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      components: '["sql_to_arc"]'
+    secrets: inherit
+
+  release:
+    name: Release
+    needs: [build, check]
+    uses: ./.github/workflows/reusable-release.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      components: '["sql_to_arc"]'
+      release_type: 'final'
+    secrets: inherit

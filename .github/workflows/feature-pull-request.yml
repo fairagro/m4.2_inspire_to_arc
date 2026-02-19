@@ -1,0 +1,25 @@
+name: Feature Pull Request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - 'feature/*'
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      version_bump: 'patch'
+      components: '["sql_to_arc"]'
+    secrets: inherit
+
+  check:
+    name: Check
+    needs: build
+    uses: ./.github/workflows/reusable-check.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      components: '["sql_to_arc"]'
+    secrets: inherit

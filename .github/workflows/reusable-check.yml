@@ -1,0 +1,227 @@
+name: Reusable Check
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version calculated in Build phase'
+        required: true
+        type: string
+      components:
+        description: 'A JSON string array of components to check'
+        required: false
+        type: string
+        default: '["sql_to_arc"]'
+
+env:
+  IMAGE_BASE_NAME: ${{ vars.IMAGE_BASE_NAME || 'fairagro-advanced-middleware' }}
+
+jobs:
+  code-quality:
+    name: CodeQuality/Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12']
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --dev --all-packages
+
+      - name: Code formatting and linting check with Ruff
+        run: |
+          uv run ruff format --check --diff middleware/
+          uv run ruff check middleware/
+
+      - name: Linting with pylint
+        run: |
+          uv run pylint middleware/ --fail-under=8.0 --output-format=colorized
+
+      - name: Type checking with mypy
+        run: |
+          uv run mypy middleware/ --ignore-missing-imports --strict-optional
+
+      - name: Security check with bandit
+        id: bandit
+        run: |
+          uv run bandit -r middleware/ --exclude middleware/tests/ --skip B101 -f json -o bandit-report.json || true
+
+      - name: Review bandit results
+        if: always() && steps.bandit.outcome == 'success'
+        id: bandit-review
+        shell: bash
+        run: |
+          echo "## 🛡️ Bandit Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f bandit-report.json ]; then
+            HIGH_ISSUES=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json)
+            MEDIUM_ISSUES=$(jq '[.results[] | select(.issue_severity == "MEDIUM")] | length' bandit-report.json)
+            
+            if [ $HIGH_ISSUES -gt 0 ] || [ $MEDIUM_ISSUES -gt 0 ]; then
+              echo "FAIL_JOB=true" >> $GITHUB_OUTPUT
+              jq -r '.results[] | " - **\(.issue_severity)**: \(.issue_text) in \(.filename):\(.line_number)"' bandit-report.json >> $GITHUB_STEP_SUMMARY
+            else
+              echo "FAIL_JOB=false" >> $GITHUB_OUTPUT
+              echo "✅ No high/medium security issues found." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+             echo "FAIL_JOB=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fail job on critical findings
+        if: steps.bandit-review.outputs.FAIL_JOB == 'true'
+        run: exit 1
+
+      - name: Run tests (Unit & Integration)
+        run: |
+          uv run pytest \
+            middleware/*/tests/unit/ \
+            middleware/*/tests/integration/ \
+            --cov=sql_to_arc \
+            --cov-report=xml \
+            --junitxml=pytest-report.xml
+
+  container-structure-test:
+    name: ContainerStructureTests/Check
+    needs: []
+    strategy:
+      matrix:
+        component: ${{ fromJson(inputs.components) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ matrix.component }}-${{ inputs.version }}
+
+      - name: Load Docker image
+        run: |
+          docker load < docker-image-${{ matrix.component }}.tar.gz
+          IMAGE_TAG="local/${{ env.IMAGE_BASE_NAME }}-${{ matrix.component }}:${{ inputs.version }}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Run Container Structure Tests
+        uses: plexsystems/container-structure-test-action@v0.3.0
+        with:
+          image: ${{ env.IMAGE_TAG }}
+          config: docker/container-structure-tests/${{ matrix.component }}.yaml
+
+  security-scan:
+    name: SecurityScan/Check
+    needs: []
+    strategy:
+      matrix:
+        component: ${{ fromJson(inputs.components) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ matrix.component }}-${{ inputs.version }}
+
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-${{ matrix.component }}-${{ inputs.version }}
+          path: sboms
+
+      - name: Load Docker image
+        run: |
+          docker load < docker-image-${{ matrix.component }}.tar.gz
+          IMAGE_TAG="local/${{ env.IMAGE_BASE_NAME }}-${{ matrix.component }}:${{ inputs.version }}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Security scan with Trivy (Image)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_TAG }}
+          format: sarif
+          output: trivy-image-results-${{ matrix.component }}.sarif
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          ignore-unfixed: true
+
+      - name: Security scan with Trivy (SBOM)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: sbom
+          input: sboms/sbom-${{ matrix.component }}.spdx.json
+          format: sarif
+          output: trivy-sbom-results-${{ matrix.component }}.sarif
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          ignore-unfixed: true
+
+      - name: Upload Trivy Image SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-image-results-${{ matrix.component }}.sarif
+          category: trivy-image-scan-${{ matrix.component }}
+
+      - name: Upload Trivy SBOM SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-sbom-results-${{ matrix.component }}.sarif
+          category: trivy-sbom-scan-${{ matrix.component }}
+
+  licence-scan:
+    name: LicenceScan/Check
+    needs: []
+    strategy:
+      matrix:
+        component: ${{ fromJson(inputs.components) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-${{ matrix.component }}-${{ inputs.version }}
+          path: sboms
+
+      - name: License Compliance Summary
+        run: |
+          echo "## ⚖️ License Compliance Analysis (${{ matrix.component }})" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for copyleft licenses
+          COPYLEFT=$(jq -r '.packages[] | select(.licenseConcluded != null and (.licenseConcluded | test("GPL|LGPL|AGPL|CDDL|EPL|MPL"; "i"))) | "\(.name): \(.licenseConcluded)"' "sboms/sbom-${{ matrix.component }}.spdx.json")
+
+          if [[ -n "$COPYLEFT" && "$COPYLEFT" != "" ]]; then
+            echo "⚠️ **Copyleft Licenses Detected**:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$COPYLEFT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Evaluate if this should fail the build based on user policy
+            # exit 1  <-- Uncomment to enforce strict check
+          else
+            echo "✅ **No problematic copyleft licenses detected**" >> $GITHUB_STEP_SUMMARY
+          fi
