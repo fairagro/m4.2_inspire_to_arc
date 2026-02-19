@@ -4,6 +4,8 @@ This module provides the InspireMapper class, which maps InspireRecord data
 to ARC Investigation, Study, Assay, and related objects.
 """
 
+import re
+
 from arctrl import (  # type: ignore[import-untyped]
     ARC,
     ArcAssay,
@@ -18,6 +20,7 @@ from arctrl import (  # type: ignore[import-untyped]
     Person,
     Publication,
 )
+from arctrl.py.Core.ontology_source_reference import OntologySourceReference  # type: ignore[import-untyped]
 
 from .harvester import Contact, InspireRecord
 
@@ -40,7 +43,24 @@ class InspireMapper:
         study.RegisterAssay(assay.Identifier)
 
         # 4. Wrap in ARC
-        return ARC.from_arc_investigation(investigation)
+        arc = ARC.from_arc_investigation(investigation)
+
+        # 5. Add raw XML as file
+        if record.raw_xml:
+            arc.FileSystem = arc.FileSystem.AddFile("iso19115.xml")
+
+        return arc
+
+    def _to_identifier_slug(self, title: str) -> str:
+        """Convert a title to a machine-readable identifier slug."""
+        if not title:
+            return "untitled"
+        # Lowercase, replace non-alphanumeric with underscores
+        slug = re.sub(r"[^a-z0-9]+", "_", title.lower())
+        # Remove leading/trailing underscores
+        slug = slug.strip("_")
+        # Truncate to a reasonable length
+        return slug[:80]
 
     def map_person(self, contact: Contact) -> Person | None:
         """Map contact object to Person with full CI_ResponsibleParty details."""
@@ -113,8 +133,20 @@ class InspireMapper:
         self._add_contacts(inv, record)
         self._add_publications(inv, record)
         self._add_comments(inv, record)
+        self._add_ontology_sources(inv, record)
 
         return inv
+
+    def _add_ontology_sources(self, inv: ArcInvestigation, record: InspireRecord) -> None:
+        """Add ontology source references from metadata standard."""
+        if record.metadata_standard_name:
+            inv.OntologySourceReferences.append(
+                OntologySourceReference.create(
+                    name=record.metadata_standard_name,
+                    version=record.metadata_standard_version or "",
+                    description="INSPIRE Metadata Standard",
+                )
+            )
 
     def _add_contacts(self, inv: ArcInvestigation, record: InspireRecord) -> None:
         """Add all contacts to the investigation."""
@@ -166,9 +198,7 @@ class InspireMapper:
         # Simple string-based fields
         fields = [
             ("Parent Identifier", record.parent_identifier),
-            ("Hierarchy Level", record.hierarchy),
             ("Language", record.language),
-            ("Character Set", record.charset),
             ("Edition", record.edition),
             ("Status", record.status),
             ("Alternate Title", record.alternate_title),
@@ -178,13 +208,6 @@ class InspireMapper:
         for label, value in fields:
             if value:
                 comments.append(Comment.create(label, value))
-
-        # Metadata Standard (with version)
-        if record.metadata_standard_name:
-            std = record.metadata_standard_name
-            if record.metadata_standard_version:
-                std += f" v{record.metadata_standard_version}"
-            comments.append(Comment.create("Metadata Standard", std))
 
         self._add_constraint_comments(comments, record)
         return comments
@@ -202,8 +225,8 @@ class InspireMapper:
 
     def map_study(self, record: InspireRecord) -> ArcStudy:
         """Map to ArcStudy with process-oriented protocols."""
-        identifier = f"{record.identifier}_study"
-        title = f"Study for: {record.title}"
+        identifier = self._to_identifier_slug(record.title)
+        title = record.title
 
         # Enhanced description with lineage, purpose, and supplemental info
         desc_parts = []
@@ -425,13 +448,17 @@ class InspireMapper:
 
     def map_assay(self, record: InspireRecord) -> ArcAssay:
         """Map to ArcAssay with enhanced technology platform and annotation table."""
-        identifier = f"{record.identifier}_assay"
+        identifier = self._to_identifier_slug(record.title)
+        title = record.title
 
         measurement_type = self._get_measurement_type(record)
         technology_type = OntologyAnnotation(name="Data Collection")
 
         assay = ArcAssay.create(
-            identifier=identifier, measurement_type=measurement_type, technology_type=technology_type
+            identifier=identifier,
+            title=title,
+            measurement_type=measurement_type,
+            technology_type=technology_type,
         )
 
         # Set Technology Platform (user suggested acquisitionInformation)
@@ -448,36 +475,27 @@ class InspireMapper:
 
     def _create_assay_table(self, record: InspireRecord) -> ArcTable | None:
         """Create annotation table for the assay, linking to final data outputs."""
-        if not (record.dataset_uri or record.online_resources):
+        outputs = []
+        if record.dataset_uri:
+            outputs.append(("Dataset URI", record.dataset_uri))
+        for res in record.online_resources:
+            outputs.append((res.name or "Online Resource", res.url))
+
+        if not outputs:
             return None
 
         table = ArcTable.init("Measurement")
-        # Add Input column (e.g., "Sample" or "Source")
-        # In arctrl-python:
-        # - Source/Sample columns are NOT Data columns (IsDataColumn=False) -> use free_text
-        # - Data columns ARE Data columns (IsDataColumn=True) -> use create_data
-        table.AddColumn(
-            CompositeHeader.input(IOType.source()),
-            [CompositeCell.free_text("Dataset Source")],
-        )
 
-        # Combine all outputs into one or more unique columns
-        # To avoid "duplicate header" error, we join all links into one Output [Data] column if they are many
-        outputs = []
-        if record.dataset_uri:
-            outputs.append(record.dataset_uri)
+        # Create parallel lists of cells for each column
+        num_rows = len(outputs)
+        input_cells = [CompositeCell.free_text("Dataset Source")] * num_rows
+        name_cells = [CompositeCell.term(OntologyAnnotation(name=name)) for name, url in outputs]
+        url_cells = [CompositeCell.create_data_from_string(url) for name, url in outputs]
 
-        for res in record.online_resources:
-            label = res.name or "Online Resource"
-            outputs.append(f"{label}: {res.url}")
-
-        if outputs:
-            # We use newline to separate multiple links in one cell
-            # Output [Data] is a Data Column -> MUST use Data Cell
-            table.AddColumn(
-                CompositeHeader.output(IOType.data()),
-                [CompositeCell.create_data_from_string(" | ".join(outputs))],
-            )
+        # Add columns with their respective cell lists
+        table.AddColumn(CompositeHeader.input(IOType.source()), input_cells)
+        table.AddColumn(CompositeHeader.parameter(OntologyAnnotation(name="Resource Name")), name_cells)
+        table.AddColumn(CompositeHeader.output(IOType.data()), url_cells)
 
         return table
 

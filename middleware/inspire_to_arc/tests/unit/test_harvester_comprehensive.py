@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
-from owslib.iso import MD_Metadata  # type: ignore
+from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
 
 from middleware.inspire_to_arc.errors import RecordProcessingError, SemanticError
 from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
@@ -17,57 +17,65 @@ def mock_csw_cls() -> Iterator[MagicMock]:
 
 
 @pytest.fixture
-def mock_iso_record() -> MagicMock:
-    """Create a mock ISO record with all fields populated."""
-    record = MagicMock()
+def create_mock_identification() -> MagicMock:
+    """Create and return a mock identification object."""
+    identification = MagicMock(spec=MD_DataIdentification)
+    identification.title = "Test Title"
+    identification.abstract = "Test Abstract"
+    identification.keywords = ["kw1", "kw2"]
+    identification.topiccategory = ["biota"]
+    identification.contact = []
+    bbox = MagicMock()
+    bbox.minx, bbox.miny, bbox.maxx, bbox.maxy = (10.0, 48.0, 11.0, 49.0)
+    identification.bbox = bbox
+    identification.temporalextent_start = "2020-01-01"
+    identification.temporalextent_end = "2020-12-31"
+    identification.resourceconstraint = []
+    identification.uricode = []
+    identification.uricodespace = []
+    identification.date = []
+    identification.resourcelanguagecode = []
+    identification.resourcelanguage = []
+    identification.graphicoverview = []
+    identification.denominators = []
+    identification.distance = []
+    identification.uom = []
+    identification.creator = []
+    identification.publisher = []
+    identification.contributor = []
+    identification.accessconstraints = []
+    identification.useconstraints = []
+    identification.classification = []
+    identification.otherconstraints = []
+    identification.otherconstraints_url = []
+    identification.edition = None
+    identification.purpose = None
+    identification.status = None
+    identification.supplementalinformation = None
+    identification.alternatetitle = None
+    return identification
+
+
+@pytest.fixture
+def mock_iso_record(create_mock_identification: MagicMock) -> MagicMock:
+    """Return a mock ISO record object."""
+    record = MagicMock(spec=MD_Metadata)
     record.identifier = "uuid-123"
     record.datestamp = "2023-01-01"
-    # Core fields to avoid MagicMock leakage into Pydantic models
-    record.referencesystem = None
+    record.xml = b"<metadata>...</metadata>"
+    record.identification = create_mock_identification
+    record.contact = []
     record.dataquality = None
     record.distribution = None
-    record.contact = []
-    # Extension fields used in getattr
+    record.referencesystem = None
     record.parentidentifier = None
-    record.language = "eng"
+    record.language = None
     record.languagecode = None
     record.charset = None
     record.hierarchy = None
     record.stdname = None
     record.stdver = None
     record.dataseturi = None
-
-    # Identification
-    ident = MagicMock()
-    ident.title = "Test Title"
-    ident.abstract = "Test Abstract"
-    ident.keywords = ["keyword1", "keyword2"]
-    ident.topiccategory = ["biota"]
-    ident.language = "eng"
-    ident.status = "completed"
-    ident.contact = []
-    ident.uricode = []
-    ident.uricodespace = []
-    ident.denominators = []
-    ident.distance = []
-    ident.uom = []
-    ident.alternatetitle = None
-    ident.edition = None
-    ident.purpose = None
-    ident.supplementalinformation = None
-    ident.temporalextent_start = "2020-01-01"
-    ident.temporalextent_end = "2020-12-31"
-
-    # Spatial
-    bbox = MagicMock()
-    bbox.minx = "10.0"
-    bbox.miny = "48.0"
-    bbox.maxx = "11.0"
-    bbox.maxy = "49.0"
-    ident.bbox = bbox
-
-    record.identification = ident
-
     return record
 
 
@@ -117,7 +125,7 @@ def test_get_records_success(mock_csw_cls: MagicMock, mock_iso_record: MagicMock
     assert rec.identifier == "uuid-123"
     assert rec.title == "Test Title"
     assert rec.abstract == "Test Abstract"
-    assert rec.keywords == ["keyword1", "keyword2"]
+    assert rec.keywords == ["kw1", "kw2"]
     assert rec.spatial_extent == [10.0, 48.0, 11.0, 49.0]
     assert rec.temporal_extent == ("2020-01-01", "2020-12-31")
     assert rec.lineage == "Test Lineage"

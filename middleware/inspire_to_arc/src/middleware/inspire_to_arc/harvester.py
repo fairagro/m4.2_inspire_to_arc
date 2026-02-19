@@ -176,6 +176,9 @@ class InspireRecord(BaseModel):
     # Supplemental (new)
     supplemental_information: str | None = None
 
+    # Raw XML for archival
+    raw_xml: bytes | None = None
+
     # Note: acquisition and contentinfo are complex nested objects that will be
     # handled separately if needed (mapped as Assay Protocols in the mapper)
 
@@ -521,6 +524,8 @@ class CSWClient:
             reference_systems=self._extract_reference_systems(iso),
             # Supplemental (new)
             supplemental_information=self._extract_identification_str("supplementalinformation", identification),
+            # Raw XML
+            raw_xml=getattr(iso, "xml", None),
         )
 
     def _extract_identification(self, iso: MD_Metadata) -> MD_DataIdentification | None:
