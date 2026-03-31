@@ -7,6 +7,8 @@ For system tests against real external services (GDI-DE), see the verification s
 in docs/DWD_FILTER_VERIFICATION.md or create a manual integration test script.
 """
 
+# ruff: noqa: SLF001, PLR2004
+
 from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
@@ -113,7 +115,7 @@ def csw_client_with_mock(mock_csw: MagicMock) -> CSWClient:
     """Create CSW client with mocked service."""
     with patch("middleware.inspire_to_arc.harvester.CatalogueServiceWeb", return_value=mock_csw):
         client = CSWClient("http://mock-csw.example.com/csw")
-        client._csw = mock_csw  # noqa: SLF001
+        client._csw = mock_csw
         return client
 
 
@@ -149,8 +151,8 @@ def test_xml_request_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
     assert records[0].title == "Test Dataset"
 
     # Verify getrecords2 was called with the XML
-    assert csw_client_with_mock._csw is not None  # noqa: SLF001
-    mock_csw = cast(MagicMock, csw_client_with_mock._csw)  # noqa: SLF001
+    assert csw_client_with_mock._csw is not None
+    mock_csw = cast(MagicMock, csw_client_with_mock._csw)
     mock_csw.getrecords2.assert_called()
 
 
@@ -167,8 +169,8 @@ def test_get_records_with_fes_constraints(csw_client_with_mock: CSWClient) -> No
     assert records[0].title == "Test Dataset"
 
     # Verify getrecords2 was called with constraints in paged mode.
-    assert csw_client_with_mock._csw is not None  # noqa: SLF001
-    mock_csw = cast(MagicMock, csw_client_with_mock._csw)  # noqa: SLF001
+    assert csw_client_with_mock._csw is not None
+    mock_csw = cast(MagicMock, csw_client_with_mock._csw)
     _, kwargs = mock_csw.getrecords2.call_args
     assert kwargs["constraints"] == constraints
 
@@ -179,6 +181,6 @@ def test_record_count_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
     count = csw_client_with_mock.get_record_count()
 
     assert count == 1
-    assert csw_client_with_mock._csw is not None  # noqa: SLF001
-    mock_csw = cast(MagicMock, csw_client_with_mock._csw)  # noqa: SLF001
+    assert csw_client_with_mock._csw is not None
+    mock_csw = cast(MagicMock, csw_client_with_mock._csw)
     assert mock_csw.getrecords2.called

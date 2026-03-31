@@ -7,6 +7,8 @@ This module includes tests for:
 - The run_harvest function, including success and error scenarios.
 """
 
+# ruff: noqa: SLF001, PLR2004
+
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 

@@ -278,7 +278,7 @@ def test_get_records_skip_invalid_records(mock_csw_cls: MagicMock, mock_iso_reco
         results = list(client.get_records())
 
     # Check that we got one valid record and one error object
-    assert len(results) == 2  # noqa: PLR2004
+    assert len(results) == 2
     records = [r for r in results if isinstance(r, InspireRecord)]
     errors = [e for e in results if isinstance(e, RecordProcessingError)]
 

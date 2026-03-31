@@ -1,5 +1,7 @@
 """Unit tests for the CSWClient and InspireRecord classes in the inspire_to_arc.harvester module."""
 
+# ruff: noqa: SLF001, PLR2004
+
 from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
@@ -19,7 +21,7 @@ def test_connect(mock_csw_cls: MagicMock) -> None:
     client = CSWClient("http://example.com/csw")
     client.connect()
     mock_csw_cls.assert_called_with("http://example.com/csw", timeout=30)
-    assert client._csw is not None  # pylint: disable=protected-access
+    assert client._csw is not None
 
 
 def test_get_records(mock_csw_cls: MagicMock) -> None:

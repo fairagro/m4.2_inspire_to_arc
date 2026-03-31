@@ -1,5 +1,7 @@
 """Comprehensive unit tests for the Inspire Mapper."""
 
+# ruff: noqa: SLF001, PLR2004
+
 import os
 import tempfile
 
@@ -119,7 +121,7 @@ def test_map_investigation(mapper: InspireMapper, sample_record: InspireRecord) 
     assert inv.SubmissionDate == "2023-10-27"
 
     # Check Contacts
-    assert len(inv.Contacts) == 4  # noqa: PLR2004
+    assert len(inv.Contacts) == 4
     contact = inv.Contacts[0]
     assert contact.LastName == "Doe"
     assert contact.FirstName == "John"
@@ -202,7 +204,7 @@ def test_map_person_without_name(mapper: InspireMapper) -> None:
 
 def test_spatial_sampling_protocol(mapper: InspireMapper, sample_record: InspireRecord) -> None:
     """Test creation of Spatial Sampling protocol."""
-    table = mapper._create_spatial_sampling_protocol(sample_record)  # pylint: disable=protected-access
+    table = mapper._create_spatial_sampling_protocol(sample_record)
 
     assert table is not None
     assert table.Name == "Spatial Sampling"
@@ -218,7 +220,7 @@ def test_spatial_sampling_protocol(mapper: InspireMapper, sample_record: Inspire
 
 def test_data_acquisition_protocol(mapper: InspireMapper, sample_record: InspireRecord) -> None:
     """Test creation of Data Acquisition protocol."""
-    table = mapper._create_data_acquisition_protocol(sample_record)  # pylint: disable=protected-access
+    table = mapper._create_data_acquisition_protocol(sample_record)
 
     assert table is not None
     assert table.Name == "Data Acquisition"
@@ -245,8 +247,8 @@ def test_map_assay_with_table(mapper: InspireMapper, sample_record: InspireRecor
     table = assay.Tables[0]
     assert table.Name == "Measurement"
     # Headers: Input, Resource Name (Parameter), Output
-    assert table.ColumnCount == 3  # noqa: PLR2004
-    assert table.RowCount == 3  # noqa: PLR2004
+    assert table.ColumnCount == 3
+    assert table.RowCount == 3
 
     # Check table content
     param_col = table.Columns[1]
@@ -270,11 +272,11 @@ def test_create_spatial_sampling_complex(mapper: InspireMapper, sample_record: I
     sample_record.spatial_resolution_denominators = [5000]
     sample_record.spatial_resolution_distances = [SpatialResolutionDistance(value=10.0, uom="m")]
 
-    table = mapper._create_spatial_sampling_protocol(sample_record)  # pylint: disable=protected-access
+    table = mapper._create_spatial_sampling_protocol(sample_record)
 
     assert table is not None
     # Input, BBox, CRS, Scale, Distance, Output
-    assert table.ColumnCount == 6  # noqa: PLR2004
+    assert table.ColumnCount == 6
 
 
 def test_create_data_processing_complex(mapper: InspireMapper, sample_record: InspireRecord) -> None:
@@ -282,12 +284,12 @@ def test_create_data_processing_complex(mapper: InspireMapper, sample_record: In
     sample_record.distribution_formats = [DistributionFormat(name="GeoJSON", version="1.0")]
     sample_record.dates = [InspireDate(date="2023-01-01", datetype="publication")]
 
-    table = mapper._create_data_processing_protocol(sample_record)  # pylint: disable=protected-access
+    table = mapper._create_data_processing_protocol(sample_record)
 
     assert table is not None
     assert table.Name == "Data Processing"
     # Input, Lineage, Conformance, Format, Processing Date, Output
-    assert table.ColumnCount == 6  # noqa: PLR2004
+    assert table.ColumnCount == 6
 
 
 def test_add_person_comments_branches(mapper: InspireMapper) -> None:
@@ -299,7 +301,7 @@ def test_add_person_comments_branches(mapper: InspireMapper) -> None:
         online_resource_url="http://doe.com",
     )
 
-    mapper._add_person_comments(person_obj, contact)  # pylint: disable=protected-access
+    mapper._add_person_comments(person_obj, contact)
 
     names = [c.Name for c in person_obj.Comments]
     assert "Position" in names
@@ -312,7 +314,7 @@ def test_generate_comments_branches(mapper: InspireMapper, sample_record: Inspir
     sample_record.purpose = "Purpose"
     sample_record.supplemental_information = "Extra"
 
-    comments = mapper._generate_comments(sample_record)  # pylint: disable=protected-access
+    comments = mapper._generate_comments(sample_record)
 
     names = [c.Name for c in comments]
     assert "Alternate Title" in names
