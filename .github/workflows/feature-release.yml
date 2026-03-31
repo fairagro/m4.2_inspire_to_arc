@@ -1,0 +1,27 @@
+name: Feature Release
+
+permissions:
+  contents: read
+
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      version_bump: 'patch'
+      components: '["inspire_to_arc"]'
+    secrets: inherit
+
+  release:
+    name: Release
+    needs: build
+    uses: ./.github/workflows/reusable-release.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      components: '["inspire_to_arc"]'
+      release_type: 'feature'
+    secrets: inherit

@@ -1,0 +1,172 @@
+name: Reusable Build
+
+permissions:
+  contents: read
+
+
+on:
+  workflow_call:
+    inputs:
+      version_bump:
+        description: 'Version bump type for GitVersion'
+        required: false
+        type: string
+        default: 'patch'
+      components:
+        description: 'A JSON string array of components to build'
+        required: false
+        type: string
+        default: '["inspire_to_arc"]'
+    outputs:
+      version:
+        description: 'Calculated version'
+        value: ${{ jobs.git-version.outputs.version }}
+      SemVer:
+        description: 'Semantic version'
+        value: ${{ jobs.git-version.outputs.SemVer }}
+      Major:
+        description: 'Major version'
+        value: ${{ jobs.git-version.outputs.Major }}
+      Minor:
+        description: 'Minor version'
+        value: ${{ jobs.git-version.outputs.Minor }}
+      Patch:
+        description: 'Patch version'
+        value: ${{ jobs.git-version.outputs.Patch }}
+      components:
+        description: 'A JSON string array of components that were built'
+        value: ${{ inputs.components }}
+
+env:
+  GITVERSION_TAG_PREFIX: ${{ vars.GITVERSION_TAG_PREFIX || '.*-docker-v' }}
+  IMAGE_BASE_NAME: ${{ vars.IMAGE_BASE_NAME || 'fairagro-advanced-middleware' }}
+
+jobs:
+  git-version:
+    name: GitVersion/Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ env.IS_FEATURE_BRANCH == 'true' && steps.gitversion.outputs.semVer || steps.gitversion.outputs.majorMinorPatch }}
+      SemVer: ${{ steps.gitversion.outputs.semVer }}
+      Major: ${{ steps.gitversion.outputs.major }}
+      Minor: ${{ steps.gitversion.outputs.minor }}
+      Patch: ${{ steps.gitversion.outputs.patch }}
+    env:
+      IS_FEATURE_BRANCH: ${{ startsWith(github.ref_name, 'feature/') }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gittools/actions/gitversion/setup@v4
+        with:
+          versionSpec: '6.4.x'
+
+      - name: Create GitVersion config
+        uses: DamianReeves/write-file-action@master
+        with:
+          path: GitVersion.yml
+          write-mode: overwrite
+          contents: |
+            mode: ContinuousDeployment
+            tag-prefix: '${{ env.GITVERSION_TAG_PREFIX }}'
+            semantic-version-format: Strict
+            branches:
+              main:
+                label: ''
+                increment: ${{ inputs.version_bump }}
+              feature:
+                regex: ^feature/(?<BranchName>.+)$
+                label: '{BranchName}'
+                increment: Inherit
+                track-merge-target: false
+
+      - name: Execute GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4
+
+  docker-build:
+    name: DockerBuild/Build
+    needs: git-version
+    strategy:
+      matrix:
+        component: ${{ fromJson(inputs.components) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.${{ matrix.component }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: local/${{ env.IMAGE_BASE_NAME }}-${{ matrix.component }}:${{ needs.git-version.outputs.version }}
+          build-args: |
+            APP_VERSION=${{ needs.git-version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save Docker image as artifact
+        run: |
+          IMAGE_TAG="local/${{ env.IMAGE_BASE_NAME }}-${{ matrix.component }}:${{ needs.git-version.outputs.version }}"
+          echo "Saving image: $IMAGE_TAG"
+          docker save "$IMAGE_TAG" | gzip > docker-image-${{ matrix.component }}.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ matrix.component }}-${{ needs.git-version.outputs.version }}
+          path: docker-image-${{ matrix.component }}.tar.gz
+          retention-days: 1
+
+  generate-sbom:
+    name: GenerateSBOM/Build
+    needs: [git-version, docker-build]
+    strategy:
+      matrix:
+        component: ${{ fromJson(inputs.components) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ matrix.component }}-${{ needs.git-version.outputs.version }}
+
+      - name: Load Docker image
+        run: |
+          docker load < docker-image-${{ matrix.component }}.tar.gz
+          IMAGE_TAG="local/${{ env.IMAGE_BASE_NAME }}-${{ matrix.component }}:${{ needs.git-version.outputs.version }}"
+          echo "SBOM_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Create SBOM directory
+        run: mkdir -p sboms
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.SBOM_IMAGE_TAG }}
+          output-file: sboms/sbom-${{ matrix.component }}.spdx.json
+          format: spdx-json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.component }}-${{ needs.git-version.outputs.version }}
+          path: sboms/sbom-${{ matrix.component }}.spdx.json
+          retention-days: 1
