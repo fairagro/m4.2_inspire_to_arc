@@ -17,6 +17,7 @@ on:
 jobs:
   build:
     name: Build
+    needs: check
     uses: ./.github/workflows/reusable-build.yml
     with:
       version_bump: 'patch'
@@ -25,6 +26,7 @@ jobs:
 
   check:
     name: Check
+    needs: build
     uses: ./.github/workflows/reusable-check.yml
     with:
       version: ${{ needs.build.outputs.version }}

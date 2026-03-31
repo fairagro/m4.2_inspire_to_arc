@@ -103,7 +103,7 @@ jobs:
 
   container-structure-test:
     name: ContainerStructureTests/Check
-    needs: [] # In a real scenario, this should not need 'build' if it only needs the artifact
+    needs: []
     strategy:
       matrix:
         component: ${{ fromJson(inputs.components) }}
@@ -134,7 +134,7 @@ jobs:
 
   security-scan:
     name: SecurityScan/Check
-    needs: [] # Requires build (for image) and generate-sbom (for SBOM)
+    needs: []
     strategy:
       matrix:
         component: ${{ fromJson(inputs.components) }}
