@@ -88,6 +88,17 @@ jobs:
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "pep440_version=$PEP440_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Report versions to summary
+        run: |
+          echo "## 📦 Docker Build Versions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Version Type | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Docker Tag** | \`${{ steps.calc-version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Python Build** | \`${{ steps.calc-version.outputs.pep440_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+
   docker-build:
     name: Docker Build
     needs: version
