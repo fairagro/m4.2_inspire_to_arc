@@ -23,9 +23,18 @@ jobs:
       components: '["inspire_to_arc"]'
     secrets: inherit
 
+  check:
+    name: Check
+    needs: build
+    uses: ./.github/workflows/reusable-check.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      components: '["inspire_to_arc"]'
+    secrets: inherit
+
   release:
     name: Release
-    needs: build
+    needs: [build, check, code-quality]
     uses: ./.github/workflows/reusable-release.yml
     with:
       version: ${{ needs.build.outputs.version }}

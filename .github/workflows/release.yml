@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: 'Version bump type'
+        description: 'Version bump type (only allowed on main branch)'
         required: true
         default: 'patch'
         type: choice
@@ -17,17 +17,22 @@ on:
         - major
         - minor
         - patch
-  workflow_call:
-    inputs:
-      version_bump:
-        description: 'Version bump type'
-        required: true
-        default: 'patch'
-        type: string
 
 jobs:
+  validate-branch:
+    name: Validate Main Branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert main branch
+        run: |
+          if [[ "${{ github.ref_name }}" != "main" ]]; then
+            echo "::error::The Release workflow can only be triggered from the 'main' branch."
+            exit 1
+          fi
+
   code-quality:
     name: Code Quality
+    needs: validate-branch
     uses: ./.github/workflows/reusable-code-quality.yml
     with:
       components: '["inspire_to_arc"]'
