@@ -59,13 +59,15 @@ COPY middleware ./middleware
 #    as pre-built wheels on PyPI.
 # 3. Thus, we use 'uv sync' to create a virtual environment (.venv) and resolve all
 #    complex dependencies exactly as specified in the uv.lock.
-RUN uv sync --no-dev
+# 4. We skip workspace installation here to avoid editable builds of the root package,
+#    which can fail in shallow/branch builds when hatch-vcs parses non-PEP440 refs.
+RUN uv sync --no-dev --no-install-workspace
 
-# 4. Install the application wheel.
+# 5. Install the application wheel.
 #    This replaces the editable install from 'uv sync' with the optimized wheel.
 RUN uv pip install /tmp/wheels/*.whl pyinstaller
 
-# 5. FIX: Manually reinstall git dependencies using their INTERNAL names (underscore)
+# 6. FIX: Manually reinstall git dependencies using their INTERNAL names (underscore)
 #    to ensure proper namespace installation. We do this AFTER installing the wheel
 #    to ensure the namespace merging happens correctly.
 RUN . .venv/bin/activate && \
