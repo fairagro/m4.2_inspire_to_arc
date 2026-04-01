@@ -47,7 +47,8 @@ jobs:
         with:
           image-ref: ${{ env.LICENCE_IMAGE_TAG }}
           format: 'table'
-          scan-type: 'license'
+          scan-type: 'image'
+          scanners: 'license'
           severity: 'CRITICAL,HIGH'
 
   security-check:
@@ -88,7 +89,8 @@ jobs:
       - name: Run Trivy Vulnerability Scan (SBOM)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
-          image-ref: 'sbom/sbom-${{ matrix.component }}.spdx.json'
+          image-ref: 'sbom-${{ matrix.component }}.spdx.json'
+          scan-type: 'sbom'
           format: 'sarif'
           output: 'trivy-sbom-results.sarif'
           severity: 'CRITICAL,HIGH'
