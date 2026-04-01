@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir --upgrade pip==26.0.1 uv==0.11.2
 # Declare build argument for versioning
 ARG APP_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_INSPIRE_TO_ARC=${APP_VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_M4_2_INSPIRE_TO_ARC=${APP_VERSION}
 
 RUN uv build --package inspire_to_arc --wheel
 
@@ -38,7 +38,7 @@ RUN pip install --no-cache-dir --upgrade pip==26.0.1 uv==0.11.2
 # Declare build argument for versioning
 ARG APP_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_INSPIRE_TO_ARC=${APP_VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_M4_2_INSPIRE_TO_ARC=${APP_VERSION}
 
 # Bring in the pre-built wheel and project metadata
 COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
