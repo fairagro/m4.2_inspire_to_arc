@@ -12,14 +12,8 @@ RUN pip install --no-cache-dir --upgrade pip==26.0.1 uv==0.11.2
 
 # Declare build argument for versioning
 ARG APP_VERSION=0.0.0
-# Global pretend version for all hatch-vcs backed packages
+# Pretend version for hatch-vcs (used during uv build of inspire_to_arc wheel)
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION}
-# Specific pretend versions for workspace members to satisfy hatch-vcs validation during uv sync/build
-# Hatch normalizes project names: dots and hyphens become underscores, all uppercase
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_M4_2_INSPIRE_TO_ARC=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_INSPIRE_TO_ARC=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_API_CLIENT=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SHARED=${APP_VERSION}
 
 RUN uv build --package inspire_to_arc --wheel
 
@@ -43,11 +37,8 @@ RUN pip install --no-cache-dir --upgrade pip==26.0.1 uv==0.11.2
 
 # Declare build argument for versioning
 ARG APP_VERSION=0.0.0
+# Pretend version for hatch-vcs (used when installing git dependencies)
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_M4_2_INSPIRE_TO_ARC=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_INSPIRE_TO_ARC=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_API_CLIENT=${APP_VERSION}
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SHARED=${APP_VERSION}
 
 # Bring in the pre-built wheel and project metadata
 COPY --from=package-builder /build/dist/*.whl /tmp/wheels/
