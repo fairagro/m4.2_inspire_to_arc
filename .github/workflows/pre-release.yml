@@ -1,4 +1,4 @@
-name: Feature Release
+name: Pre Release
 
 permissions:
   contents: write
