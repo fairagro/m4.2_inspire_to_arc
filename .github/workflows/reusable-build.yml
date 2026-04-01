@@ -61,10 +61,9 @@ jobs:
           BASE_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
           if [[ "$GITHUB_REF_NAME" == feature/* ]]; then
-            # Sanitize: Remove 'feature/', replace special chars with '-', and ensure only alphanumeric/hyphens
-            BRANCH_LABEL=$(echo "$GITHUB_REF_NAME" | sed 's|feature/||' | tr '/_ ' '-' | sed 's/[^a-zA-Z0-9-]//g' | cut -c1-30)
+            BRANCH_LABEL=$(echo "$GITHUB_REF_NAME" | sed 's|feature/||' | tr '/_ ' '---' | cut -c1-30)
             SHORT_SHA=$(git rev-parse --short HEAD)
-            NEW_VERSION="${BASE_VERSION}-dev.${BRANCH_LABEL}.${SHORT_SHA}"
+            NEW_VERSION="${BASE_VERSION}-${BRANCH_LABEL}.${SHORT_SHA}"
           else
             NEW_VERSION="${BASE_VERSION}"
           fi
