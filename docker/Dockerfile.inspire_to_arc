@@ -65,7 +65,11 @@ COPY middleware ./middleware
 #    complex dependencies exactly as specified in the uv.lock.
 # 4. We skip workspace installation here to avoid editable builds of the root package,
 #    which can fail in shallow/branch builds when hatch-vcs parses non-PEP440 refs.
-RUN uv sync --no-dev --no-install-workspace
+# 5. We also skip direct installation of git-based hatch-vcs packages during sync
+#    and install them explicitly later to keep versioning deterministic in CI.
+RUN uv sync --no-dev --no-install-workspace \
+    --no-install-package api-client \
+    --no-install-package shared
 
 # 5. Install the application wheel.
 #    This replaces the editable install from 'uv sync' with the optimized wheel.
