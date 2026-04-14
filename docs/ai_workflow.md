@@ -111,10 +111,10 @@ spec/                          ← Project-level (cross-cutting concerns)
 middleware/
 └── inspire_to_arc/
     └── spec/                  ← Component-level (inspire_to_arc internals)
-        ├── workflow-execution/
-        ├── arc-building/
-        ├── database-access/
-        └── api-upload/
+        ├── csw-harvesting/
+        ├── inspire-to-arc-mapping/
+        ├── api-upload/
+        └── workflow-execution/
 ```
 
 **Project-level specs** cover concerns that cut across components or that don't
