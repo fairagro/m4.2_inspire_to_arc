@@ -316,6 +316,7 @@ memory promptly.
 Test assertion pattern:
 
 ```python
+import json
 graph = json.loads(arc.ToROCrateJsonString()).get("@graph", [])
 inv_node = next(item for item in graph if item.get("identifier") == "inv001")
 person = next(item for item in graph if item.get("familyName") == "Doe")
