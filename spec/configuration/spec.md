@@ -2,7 +2,7 @@
 
 The harvester relies on standard YAML configuration via the `ConfigWrapper` / `ConfigBase` pattern.
 
-**Skill Reference:** Agents must load and follow [`.agents/skills/config-wrapper/SKILL.md`](../../../.agents/skills/config-wrapper/SKILL.md) when extending or working with configuration.
+**Skill Reference:** Agents must load and follow [`.agents/skills/config-wrapper/SKILL.md`](../../.agents/skills/config-wrapper/SKILL.md) when extending or working with configuration.
 
 ## Requirements
 
