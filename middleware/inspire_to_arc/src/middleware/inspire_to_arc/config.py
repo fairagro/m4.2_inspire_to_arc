@@ -4,7 +4,6 @@ from typing import Annotated
 
 from pydantic import Field
 
-from middleware.api_client.config import Config as ApiClientConfig
 from middleware.shared.config.config_base import ConfigBase
 
 
@@ -15,4 +14,3 @@ class Config(ConfigBase):
     rdi: Annotated[str, Field(description="RDI identifier (e.g. inspire-import)")] = "inspire-import"
     query: Annotated[str | None, Field(description="CQL query string for filtering records")] = None
     xml_request: Annotated[str | None, Field(description="Raw XML request for advanced queries")] = None
-    api_client: Annotated[ApiClientConfig, Field(description="API Client configuration")]

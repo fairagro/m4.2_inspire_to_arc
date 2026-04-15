@@ -38,6 +38,7 @@ For every config field, the wrapper resolves values in this order:
 4. **Pydantic field default**
 
 Nested fields use `_` as path separator:
+
 - `api_client.api_url` with prefix `MY_APP` → `MY_APP_API_CLIENT_API_URL`
 
 ---
@@ -45,7 +46,7 @@ Nested fields use `_` as path separator:
 ## Type Coercion (env / secret values are always strings)
 
 | String value | Parsed as |
-|---|---|
+| --- | --- |
 | `"true"` / `"True"` / `"TRUE"` | `True` (bool) |
 | `"false"` / `"False"` / `"FALSE"` | `False` (bool) |
 | `"123"` | `123` (int) |
@@ -95,6 +96,7 @@ otel: OtelConfig  # OpenTelemetry settings
 ```
 
 `OtelConfig` fields:
+
 - `endpoint: str | None` — OTLP collector URL
 - `log_console_spans: bool` — print spans to stdout
 - `log_level: LogLevel` — OTLP log export level
@@ -108,6 +110,39 @@ otel: OtelConfig  # OpenTelemetry settings
   or log them directly.
 - Docker secrets: mount files to `/run/secrets/`; the wrapper resolves them
   automatically using the full key name (lowercase).
+
+---
+
+## Typing Rule
+
+All `ConfigBase`/`BaseModel` subclasses **must be fully typed** — `dict[str, Any]` and bare `Any` fields are forbidden.
+
+When a config field holds a nested config, declare its **concrete Pydantic type**:
+
+```python
+# ✗ Wrong — loses schema validation and type safety
+config: dict[str, Any]
+
+# ✓ Correct — Pydantic validates at startup; IDE support works
+config: Annotated[InspireToArcConfig, Field(description="Inspire plugin configuration")]
+```
+
+For plugin registries where each entry may hold one of several typed configs, use a model with one optional field per plugin type and a `model_validator` that enforces exactly one is set:
+
+```python
+class RepositoryConfig(BaseModel):
+    inspire: Annotated[InspireToArcConfig | None, Field(description="INSPIRE CSW plugin")] = None
+    # future_plugin: Annotated[FuturePluginConfig | None, Field(...)] = None
+
+    @model_validator(mode="after")
+    def exactly_one_plugin(self) -> "RepositoryConfig":
+        set_fields = [f for f, v in self.__dict__.items() if v is not None]
+        if len(set_fields) != 1:
+            raise ValueError(f"Exactly one plugin key must be set; got: {set_fields}")
+        return self
+```
+
+This keeps each plugin's configuration schema self-contained and avoids the catch-all `dict[str, Any]` anti-pattern.
 
 ---
 

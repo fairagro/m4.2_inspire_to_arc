@@ -16,8 +16,9 @@ import pytest
 from owslib.fes import PropertyIsLike  # type: ignore
 from owslib.iso import MD_Metadata  # type: ignore
 
+from middleware.inspire_to_arc.csw_client import CSWClient
 from middleware.inspire_to_arc.errors import RecordProcessingError
-from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
+from middleware.inspire_to_arc.models import InspireRecord
 
 
 def _set_attrs(target: MagicMock, attrs: dict[str, Any]) -> None:
@@ -113,7 +114,7 @@ def mock_csw() -> MagicMock:
 @pytest.fixture
 def csw_client_with_mock(mock_csw: MagicMock) -> CSWClient:
     """Create CSW client with mocked service."""
-    with patch("middleware.inspire_to_arc.harvester.CatalogueServiceWeb", return_value=mock_csw):
+    with patch("middleware.inspire_to_arc.csw_client.CatalogueServiceWeb", return_value=mock_csw):
         client = CSWClient("http://mock-csw.example.com/csw")
         client._csw = mock_csw
         return client

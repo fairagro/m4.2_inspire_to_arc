@@ -1,11 +1,12 @@
 [project]
-name = "m4.2_inspire_to_arc"
+name = "m4.2_middleware_harvester"
 dynamic = ["version"]
-description = "The FAIRagro INSPIRE-to-ARC client"
+description = "The FAIRagro Middleware Harvester"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "inspire_to_arc",
+  "harvester",
 ]
 
 [dependency-groups]
@@ -26,12 +27,14 @@ dev = [
 
 [tool.uv.sources]
 inspire_to_arc = { workspace = true }
+harvester = { workspace = true }
 api_client = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/api_client" }
 shared = { git = "https://github.com/fairagro/m4.2_advanced_middleware_api.git", branch = "main", subdirectory = "middleware/shared" }
 
 [tool.uv.workspace]
 members = [
     "middleware/inspire_to_arc",
+    "middleware/harvester",
 ]
 
 [tool.ruff]
@@ -103,7 +106,10 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 explicit_package_bases = true
 namespace_packages = true
-mypy_path = "middleware/inspire_to_arc/src"
+mypy_path = [
+  "middleware/inspire_to_arc/src",
+  "middleware/harvester/src",
+]
 
 # Exclude directories from type checking
 exclude = [
@@ -119,15 +125,15 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
-module = "middleware.shared.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "middleware.api_client.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = "owslib.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "arctrl.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "arctrl"
 ignore_missing_imports = true
 
 # Docstring-Regeln aktivieren, damit es wie pylint C0114/15/16 meckert

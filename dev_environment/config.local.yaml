@@ -1,10 +1,12 @@
 log_level: DEBUG
 
-csw_url: "https://repository-e.dataservice.zalf.de/catalogue/csw"
-# csw_url: https://stable.demo.geonode.org/catalogue/csw
-rdi: "bonares"
-query: ~
-xml_request: ~
+repositories:
+  - inspire:
+      csw_url: "https://repository-e.dataservice.zalf.de/catalogue/csw"
+      # csw_url: https://stable.demo.geonode.org/catalogue/csw
+      rdi: "bonares"
+      query: ~
+      xml_request: ~
 
 api_client:
   api_url: "https://middleware.fairagro.net"

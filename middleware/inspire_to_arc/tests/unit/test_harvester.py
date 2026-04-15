@@ -8,12 +8,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from owslib.iso import MD_Metadata  # type: ignore[import-untyped]
 
-from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
+from middleware.inspire_to_arc.csw_client import CSWClient
+from middleware.inspire_to_arc.models import InspireRecord
 
 
 @pytest.fixture
 def mock_csw_cls() -> Iterator[MagicMock]:
-    with patch("middleware.inspire_to_arc.harvester.CatalogueServiceWeb") as mock:
+    with patch("middleware.inspire_to_arc.csw_client.CatalogueServiceWeb") as mock:
         yield mock
 
 

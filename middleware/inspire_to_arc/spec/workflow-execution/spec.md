@@ -1,11 +1,13 @@
-# Workflow Execution
+# Plugin Execution
 
-Orchestrates the entire harvesting logic.
+Exposes an asynchronous generator that iterates over CSW records and yields serialized ARCs. As a plugin, it must not execute standalone (no `main()` function) and relies on the global Harvester for API interactions.
 
 ## Requirements
 
+- [ ] Export an asynchronous function `run_plugin(config: Config) -> AsyncGenerator[str, None]` from `plugin.py` to serve as the integration point for the central Harvester.
 - [ ] Use the `CSWClient` class to communicate with the CSW endpoint and fetch all available metadata records iteratively.
 - [ ] Skip any record whose `hierarchy` is not a valid data type (i.e., not within `["dataset", "series", "nongeographicdataset"]`).
 - [ ] Use the `InspireMapper` class to transform each valid parsed record into an ARC object.
-- [ ] Upload the generated ARCs to the FAIRagro Middleware API using the configured API client.
-- [ ] Error isolation: If the mapping or uploading of a single record fails, the orchestrator must log the error (including the record identifier to ease debugging) and continue processing the rest of the records without aborting the entire run.
+- [ ] Serialize each ARC via `arc.ToROCrateJsonString()` and `yield` the resulting JSON string to the calling Harvester.
+- [ ] Do not include a `main()` function, argument parsing, or `ApiClient` upload logic.
+- [ ] Error isolation: If the parsing or mapping of a single record fails, the plugin must log the error and continue yielding subsequent records without aborting.

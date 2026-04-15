@@ -8,13 +8,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore
 
+from middleware.inspire_to_arc.csw_client import CSWClient
 from middleware.inspire_to_arc.errors import RecordProcessingError, SemanticError
-from middleware.inspire_to_arc.harvester import CSWClient, InspireRecord
+from middleware.inspire_to_arc.models import InspireRecord
 
 
 @pytest.fixture
 def mock_csw_cls() -> Iterator[MagicMock]:
-    with patch("middleware.inspire_to_arc.harvester.CatalogueServiceWeb") as mock:
+    with patch("middleware.inspire_to_arc.csw_client.CatalogueServiceWeb") as mock:
         yield mock
 
 
@@ -117,7 +118,7 @@ def test_get_records_success(mock_csw_cls: MagicMock, mock_iso_record: MagicMock
             return True
         return isinstance(obj, cls)
 
-    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+    with patch("middleware.inspire_to_arc.csw_client.isinstance", side_effect=mock_isinstance):
         client = CSWClient("http://example.com/csw")
         records = list(client.get_records(max_records=1))
 
@@ -274,7 +275,7 @@ def test_get_records_skip_invalid_records(mock_csw_cls: MagicMock, mock_iso_reco
         return original_isinstance(obj, cls)
 
     client = CSWClient("http://example.com/csw")
-    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+    with patch("middleware.inspire_to_arc.csw_client.isinstance", side_effect=mock_isinstance):
         results = list(client.get_records())
 
     # Check that we got one valid record and one error object
@@ -312,7 +313,7 @@ def test_get_records_skip_generic_exception(mock_csw_cls: MagicMock) -> None:
         return original_isinstance(obj, cls)
 
     client = CSWClient("http://example.com/csw")
-    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+    with patch("middleware.inspire_to_arc.csw_client.isinstance", side_effect=mock_isinstance):
         results = list(client.get_records())
 
     assert len(results) == 1
@@ -336,7 +337,7 @@ def test_get_records_by_xml(mock_csw_cls: MagicMock, mock_iso_record: MagicMock)
         return original_isinstance(obj, cls)
 
     client = CSWClient("http://example.com/csw")
-    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+    with patch("middleware.inspire_to_arc.csw_client.isinstance", side_effect=mock_isinstance):
         # Trigger XML path
         results = list(client.get_records(xml_request="<Filter>...</Filter>", max_records=1))
 
@@ -363,7 +364,7 @@ def test_get_records_by_constraints(mock_csw_cls: MagicMock, mock_iso_record: Ma
         return original_isinstance(obj, cls)
 
     client = CSWClient("http://example.com/csw")
-    with patch("middleware.inspire_to_arc.harvester.isinstance", side_effect=mock_isinstance):
+    with patch("middleware.inspire_to_arc.csw_client.isinstance", side_effect=mock_isinstance):
         # Trigger constraint path
         results = list(client.get_records(constraints=["AnyText", "test"], max_records=1))
 

@@ -22,7 +22,7 @@ from arctrl import (  # type: ignore[import-untyped]
 )
 from arctrl.py.Core.ontology_source_reference import OntologySourceReference  # type: ignore[import-untyped]
 
-from .harvester import Contact, InspireRecord
+from .models import Contact, InspireRecord
 
 
 class InspireMapper:
