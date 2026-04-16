@@ -62,6 +62,15 @@ closed, apply least privilege.
   (defined in `middleware.harvester.errors`).
 - Code quality gates: Ruff (lint + format), mypy, pylint, bandit, pytest —
   all must pass before merge. Every new feature requires matching tests.
+- **All quality tool invocations (VS Code, pre-commit, CI) must produce identical
+  results.** This is achieved by having each tool read its configuration exclusively
+  from a single shared config file — normally `pyproject.toml` (`[tool.ruff]`,
+  `[tool.mypy]`, `[tool.pylint.*]`). Tools that cannot be configured via
+  `pyproject.toml` (e.g. bandit) must have a dedicated config file (e.g. `.bandit`)
+  shared by all invocations. Individual invocations must contain no extra CLI flags
+  that override shared config; the only acceptable flags are those that cannot be
+  expressed in a config file. The tool version used in every context must be the one
+  locked in `uv.lock` — use `uv run <tool>` everywhere.
 - No `noqa` / `type: ignore` suppressions unless technically unavoidable.
 - Validation belongs in Pydantic models where possible. Use `Literal` types or
   `@field_validator` to enforce valid values — a `ValidationError` triggers the

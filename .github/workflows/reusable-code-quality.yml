@@ -44,8 +44,8 @@ jobs:
         run: |
           uv run ruff format --check --diff middleware/
           uv run ruff check middleware/
-          uv run pylint middleware/ --fail-under=8.0 --output-format=colorized
-          uv run mypy middleware/ --ignore-missing-imports --strict-optional
+          uv run pylint middleware/
+          uv run mypy middleware/
 
       - name: Security check with bandit
         run: uv run bandit -r middleware/ -c .bandit -ll

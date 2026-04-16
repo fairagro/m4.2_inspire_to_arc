@@ -19,7 +19,7 @@ def test_harvester_config_loading() -> None:
                 "rdi": "test-import",
                 "inspire": {
                     "csw_url": "https://csw.example.com",
-                }
+                },
             }
         ],
     }
