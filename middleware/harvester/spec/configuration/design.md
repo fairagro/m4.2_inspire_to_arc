@@ -14,8 +14,9 @@ optional plugin field whose Pydantic type is the plugin's own config model.
    — The field name is the plugin key (e.g. `inspire`), the field type is the
    plugin's own Pydantic config model. This gives full static typing, IDE
    completion, and schema validation without any `dict[str, Any]` or string
-   dispatch. Adding a future plugin is an additive change: one new optional
-   field on `RepositoryConfig` and one entry in `_PLUGIN_FIELDS`.
+   dispatch. Adding a future plugin requires three additive changes: one new
+   optional field on `RepositoryConfig`, one entry in `_PLUGIN_FIELDS`
+   (mutual-exclusion validation), and one entry in `_PLUGIN_RUNNERS` (dispatch).
 
 2. **`_PLUGIN_FIELDS` class attribute as the authoritative set of mutually exclusive plugin fields**
    — `RepositoryConfig` carries a `ClassVar[frozenset[str]]` listing every optional

@@ -4,8 +4,10 @@ Defines the structure of the harvester configuration file. The configuration
 is validated at startup via Pydantic; an invalid config aborts the process
 before any harvesting begins.
 
-All configuration classes follow the `ConfigWrapper / ConfigBase` pattern —
+The top-level `Config` class follows the `ConfigWrapper / ConfigBase` pattern —
 see skill [`config-wrapper`](../../../../.agents/skills/config-wrapper/SKILL.md).
+Plugin configs (nested under each repository entry) are plain Pydantic `BaseModel`
+subclasses; they are populated by the same YAML loading but do not extend `ConfigBase`.
 
 ## Requirements
 

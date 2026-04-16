@@ -4,7 +4,7 @@ Exposes an asynchronous generator that iterates over CSW records and yields seri
 
 ## Requirements
 
-- [ ] Export an asynchronous function `run_plugin(config: Config) -> AsyncGenerator[str | HarvesterError, None]` from `plugin.py` to serve as the integration point for the central Harvester.
+- [ ] Export an asynchronous function `run_plugin(config: PluginConfig) -> AsyncGenerator[str | HarvesterError, None]` from `plugin.py` to serve as the integration point for the central Harvester.
 - [ ] Use the `CSWClient` class to communicate with the CSW endpoint and fetch all available metadata records iteratively.
 - [ ] Skip any record whose `hierarchy` is not a valid data type (i.e., not within `["dataset", "series", "nongeographicdataset"]`).
 - [ ] Use the `InspireMapper` class to transform each valid parsed record into an ARC object.

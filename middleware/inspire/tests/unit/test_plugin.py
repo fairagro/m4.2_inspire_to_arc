@@ -2,7 +2,6 @@
 
 # ruff: noqa: SLF001, PLR2004
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,13 +12,9 @@ from middleware.inspire.models import InspireRecord
 from middleware.inspire.plugin import run_plugin
 
 
-def test_config_loading(tmp_path: Path) -> None:
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("""
-csw_url: https://csw.example.com
-""")
-
-    config = Config.from_yaml_file(config_file)
+def test_config_loading() -> None:
+    # PluginConfig is a pure data container; instantiate directly
+    config = Config(csw_url="https://csw.example.com")
     assert config.csw_url == "https://csw.example.com"
 
 

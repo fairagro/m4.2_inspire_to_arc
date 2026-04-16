@@ -82,6 +82,12 @@ class Config(ConfigBase):  # or BaseModel if ConfigBase fields aren't needed
 
 ---
 
+## ConfigBase vs PluginConfig
+
+**Use `ConfigBase`** (from `middleware.shared`) only for **top-level component configs** — i.e., the `Config` class that is loaded from a YAML file via `ConfigWrapper`. It adds `log_level`, `otel`, and `from_config_wrapper`.
+
+---
+
 ## ConfigBase (optional convenience base)
 
 `ConfigBase` from `middleware.shared` is a FAIRagro-specific convenience class.

@@ -14,3 +14,6 @@ The project consists of a core orchestrator module (`middleware/harvester`) and 
 
 3. **Moving `api_client` configuration to the Harvester core**
    — Individual plugins should not know about or be responsible for uploading data to the FAIRagro Middleware API. By lifting `api_client` into the central harvester configuration, we ensure single-point authentication, unified connection handling, and centralized error logging for all uploads.
+
+4. **Plugin dispatch via a static registry dict (`_PLUGIN_RUNNERS`)**
+   — `main.py` holds a module-level dict mapping plugin type names to their `run_plugin` functions. The orchestration loop looks up the runner by `repo.plugin_type` and calls it with `repo.plugin_config`. This avoids an `if/elif` chain that would grow with every new plugin. Adding a new plugin requires one import and one dict entry in `_PLUGIN_RUNNERS`; the orchestrator loop itself needs no changes.

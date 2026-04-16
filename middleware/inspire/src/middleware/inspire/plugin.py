@@ -6,8 +6,10 @@ central Harvester orchestrator. This module contains no CLI entry point.
 
 import logging
 from collections.abc import AsyncGenerator
+from typing import cast
 
 from middleware.harvester.errors import HarvesterError, RecordProcessingError
+from middleware.harvester.plugin_config import PluginConfig
 from middleware.inspire.config import Config
 from middleware.inspire.csw_client import CSWClient
 from middleware.inspire.mapper import InspireMapper
@@ -15,11 +17,12 @@ from middleware.inspire.mapper import InspireMapper
 logger = logging.getLogger(__name__)
 
 
-async def run_plugin(config: Config) -> AsyncGenerator[str | HarvesterError, None]:
+async def run_plugin(config: PluginConfig) -> AsyncGenerator[str | HarvesterError, None]:
     """Run the harvest process and yield serialized RO-Crate ARCs or Harvester errors."""
+    inspire_config = cast(Config, config)
     # 1. Setup CSW Client
-    logger.info("Connecting to CSW at %s...", config.csw_url)
-    csw_client = CSWClient(config.csw_url)
+    logger.info("Connecting to CSW at %s...", inspire_config.csw_url)
+    csw_client = CSWClient(inspire_config.csw_url)
 
     # 2. Setup Mapper
     mapper = InspireMapper()
@@ -30,8 +33,8 @@ async def run_plugin(config: Config) -> AsyncGenerator[str | HarvesterError, Non
     try:
         # Pass query if configured
         records_iter = csw_client.get_records(
-            _query=config.query,
-            xml_request=config.xml_request,
+            _query=inspire_config.query,
+            xml_request=inspire_config.xml_request,
             max_records=1000000,  # Use a large number or implement proper pagination loop in main
         )
 

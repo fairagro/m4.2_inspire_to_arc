@@ -2,12 +2,10 @@
 
 from typing import Annotated
 
-from pydantic import Field
-
-from middleware.shared.config.config_base import ConfigBase
+from pydantic import BaseModel, Field
 
 
-class Config(ConfigBase):
+class Config(BaseModel):
     """Configuration model for the Inspire to ARC middleware."""
 
     csw_url: Annotated[str, Field(description="URL of the CSW endpoint")]

@@ -5,6 +5,7 @@ from typing import Annotated, ClassVar
 from pydantic import BaseModel, Field, model_validator
 
 from middleware.api_client.config import Config as ApiClientConfig
+from middleware.harvester.plugin_config import PluginConfig
 from middleware.inspire.config import Config as InspireConfig
 from middleware.shared.config.config_base import ConfigBase
 
@@ -48,7 +49,7 @@ class RepositoryConfig(BaseModel):
         raise RuntimeError("No plugin key set — did model validation run?")  # pragma: no cover
 
     @property
-    def plugin_config(self) -> InspireConfig:
+    def plugin_config(self) -> PluginConfig:
         """Return the active plugin configuration object."""
         if self.inspire is not None:
             return self.inspire

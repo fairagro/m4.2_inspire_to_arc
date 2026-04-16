@@ -10,9 +10,15 @@ from arctrl import ARC
 from middleware.api_client import ApiClient
 from middleware.harvester.config import Config
 from middleware.harvester.errors import HarvesterError
-from middleware.inspire.plugin import run_plugin
+from middleware.inspire.plugin import run_plugin as run_inspire_plugin
 
 logger = logging.getLogger(__name__)
+
+# Registry mapping plugin type names to their run_plugin functions.
+# To add a new plugin: import its run_plugin and add an entry here.
+_PLUGIN_RUNNERS = {
+    "inspire": run_inspire_plugin,
+}
 
 
 async def run_orchestrator(config: Config) -> None:
@@ -21,12 +27,12 @@ async def run_orchestrator(config: Config) -> None:
         for repo in config.repositories:
             logger.info("Initializing plugin type: %s", repo.plugin_type)
 
-            if repo.plugin_type == "inspire":
-                plugin_config = repo.plugin_config
-                plugin_gen = run_plugin(plugin_config)
-            else:
+            plugin_runner = _PLUGIN_RUNNERS.get(repo.plugin_type)
+            if plugin_runner is None:
                 logger.error("Unknown repository type '%s', skipping...", repo.plugin_type)
                 continue
+
+            plugin_gen = plugin_runner(repo.plugin_config)
 
             count = 0
             async for item in plugin_gen:
