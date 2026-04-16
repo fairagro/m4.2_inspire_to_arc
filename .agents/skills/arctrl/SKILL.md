@@ -227,7 +227,11 @@ header_any = CompositeHeader.OfHeaderString("SomeColumnName")
 # "Data" / "RawDataFile" / "Raw Data File" / "DerivedDataFile" /
 # "Derived Data File" / "ImageFile" / "Image File"  → tag 2 (Data)
 # "Material"                → tag 3 (Material)
-# Any other string          → tag 4 (FreeType — avoid for ISA compliance)
+# Any other string          → tag 4 (FreeType — avoid for strict ISA compliance;
+#                             valid for domain-specific types, e.g. IOType.of_string("URI")
+#                             for URL output columns — produces @type "URI" in RO-Crate)
+# NOTE: IOType.data() must NOT be used with free_text cells — WriteAsync raises
+#       "Not a Data Cell." at serialisation time. Use IOType.of_string("URI") instead.
 
 # Build cells
 cell_text = CompositeCell.free_text("some value")

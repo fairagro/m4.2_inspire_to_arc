@@ -48,6 +48,7 @@ exclude = [
   ".pytest_cache",
   ".mypy_cache",
   ".ruff_cache",
+  "dev_environment",
   "build",
   "dist",
   "py.typed"
@@ -122,6 +123,7 @@ exclude = [
   ".pytest_cache",
   ".mypy_cache",
   ".ruff_cache",
+  "dev_environment",
 ]
 
 [[tool.mypy.overrides]]

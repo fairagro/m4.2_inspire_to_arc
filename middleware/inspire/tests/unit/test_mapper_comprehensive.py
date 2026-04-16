@@ -4,6 +4,7 @@
 
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 from arctrl import ARC, ArcAssay, ArcInvestigation, ArcStudy, OntologyAnnotation, Person  # type: ignore[import]
@@ -288,7 +289,6 @@ def test_data_acquisition_protocol(mapper: InspireMapper, sample_record: Inspire
 def test_map_assay_with_table(mapper: InspireMapper, sample_record: InspireRecord) -> None:
     # Add data for the assay table
     sample_record.dataset_uri = "https://data.example.com/api"
-
     sample_record.online_resources = [OnlineResource(name="Download", url="https://data.example.com/download")]
     sample_record.graphic_overviews = ["https://data.example.com/preview.png"]
 
@@ -297,24 +297,26 @@ def test_map_assay_with_table(mapper: InspireMapper, sample_record: InspireRecor
     assert len(assay.Tables) == 1
     table = assay.Tables[0]
     assert table.Name == "Measurement"
-    # Headers: Input, Resource Name (Parameter), Resource URL (Comment)
-    assert table.ColumnCount == 3
-    assert table.RowCount == 3
+    # Columns: Input, Output[URI], Comment[Online Resource], Comment[Online Resource Name],
+    # Comment[Graphic Overview] — protocol/description/function omitted (all empty)
+    assert table.ColumnCount == 5
+    assert table.RowCount == 1
 
-    # Check table content
-    param_col = table.Columns[1]
-    output_col = table.Columns[2]
-
-    assert param_col.Cells[0].AsTerm.Name == "Dataset Landing Page"
+    # Output[URI] = dataSetURI (preferred over online resource)
+    output_col = table.Columns[1]
     assert output_col.Cells[0].AsFreeText == "https://data.example.com/api"
 
-    assert param_col.Cells[1].AsTerm.Name == "Download"
-    assert output_col.Cells[1].AsFreeText == "https://data.example.com/download"
+    # Comment[Online Resource] = URL
+    online_url_col = next(col for col in table.Columns if str(col.Header) == "Comment [Online Resource]")
+    assert online_url_col.Cells[0].AsFreeText == "https://data.example.com/download"
 
-    assert param_col.Cells[2].AsTerm.Name == "Graphic Overview"
-    assert output_col.Cells[2].AsFreeText == "https://data.example.com/preview.png"
+    online_name_col = next(col for col in table.Columns if str(col.Header) == "Comment [Online Resource Name]")
+    assert online_name_col.Cells[0].AsFreeText == "Download"
 
-    # Assay comments should now be empty (moved to table)
+    graphic_col = next(col for col in table.Columns if str(col.Header) == "Comment [Graphic Overview]")
+    assert graphic_col.Cells[0].AsFreeText == "https://data.example.com/preview.png"
+
+    # Assay-level Comments must NOT contain resource URLs (they live in the table)
     assert len(assay.Comments) == 0
 
 
@@ -479,21 +481,19 @@ def test_add_ontology_sources(mapper: InspireMapper) -> None:
 
 def test_dataset_uri_and_lineage_url_mapping(mapper: InspireMapper, sample_record: InspireRecord) -> None:
     """Test dataset URI and lineage URL mapping in assay table and data processing protocol."""
-    # Test dataset URI in assay table
+    # Test dataset URI in assay table — single row, Output[URI] column
     sample_record.dataset_uri = "https://example.com/dataset"
+    sample_record.online_resources = []
+    sample_record.graphic_overviews = []
     assay = mapper.map_assay(sample_record)
 
     assert len(assay.Tables) == 1
     assay_table = assay.Tables[0]
+    # Only Input + Output[URI] — no online resources or overviews in this record
+    assert assay_table.ColumnCount == 2
 
-    # Find Dataset Landing Page row
-    param_col = assay_table.Columns[1]  # Resource Name column
-    output_col = assay_table.Columns[2]  # Resource URL (Comment) column
-
-    landing_page_rows = [i for i, cell in enumerate(param_col.Cells) if cell.AsTerm.Name == "Dataset Landing Page"]
-
-    assert len(landing_page_rows) == 1
-    assert output_col.Cells[landing_page_rows[0]].AsFreeText == "https://example.com/dataset"
+    output_col = assay_table.Columns[1]  # Output [URI]
+    assert output_col.Cells[0].AsFreeText == "https://example.com/dataset"
 
     # Test lineage URL in data processing protocol
     sample_record.lineage_url = "https://example.com/lineage"
@@ -762,3 +762,89 @@ def test_map_record_adds_xml_file(mapper: InspireMapper, sample_record: InspireR
         assert os.path.exists(xml_file_path)
         with open(xml_file_path, encoding="utf-8") as f:
             assert f.read() == "<xml>test content</xml>"
+
+
+# ---------------------------------------------------------------------------
+# ARC directory structure tests
+# ---------------------------------------------------------------------------
+
+_ALLOWED_TOP_LEVEL_ARC_DIRS = {"studies", "assays", "workflows", "runs", ".arc"}
+
+
+def _collect_dir_names(root: str) -> set[str]:
+    """Return the names (not paths) of every directory under *root*."""
+    names: set[str] = set()
+    for _dirpath, dirnames, _ in os.walk(root):
+        for d in dirnames:
+            names.add(d)
+    return names
+
+
+def test_arc_write_no_url_directories(mapper: InspireMapper, sample_record: InspireRecord, tmp_path: Path) -> None:
+    """Written ARC must not contain any URL-based subdirectories.
+
+    Before the https:-directory fix, arctrl's WriteAsync would interpret a
+    URL stored as an IOType.data() ``@id`` as a filesystem path and create
+    directories such as ``https:/``, ``example.com``, etc.
+    """
+    sample_record.dataset_uri = "https://data.example.com/dataset"
+    sample_record.online_resources = [
+        OnlineResource(url="https://example.com/download/resource", name="Download"),
+    ]
+    sample_record.graphic_overviews = ["https://example.com/thumb.png"]
+
+    arc = mapper.map_record(sample_record)
+    contracts = list(arc.GetWriteContracts())
+    run_synchronously(full_fill_contract_batch_async(str(tmp_path), contracts))
+
+    all_dir_names = _collect_dir_names(str(tmp_path))
+
+    for d in all_dir_names:
+        assert not d.startswith("https:"), f"URL directory created on disk: {d!r}"
+        assert not d.startswith("http:"), f"URL directory created on disk: {d!r}"
+
+    top_level_dirs = {p.name for p in tmp_path.iterdir() if p.is_dir()}
+    unexpected = top_level_dirs - _ALLOWED_TOP_LEVEL_ARC_DIRS
+    assert not unexpected, f"Unexpected top-level directories in written ARC: {unexpected}"
+
+
+def test_arc_write_expected_top_level_structure(
+    mapper: InspireMapper, sample_record: InspireRecord, tmp_path: Path
+) -> None:
+    """Written ARC must contain the standard top-level ARC directories."""
+    arc = mapper.map_record(sample_record)
+    contracts = list(arc.GetWriteContracts())
+    run_synchronously(full_fill_contract_batch_async(str(tmp_path), contracts))
+
+    top_level_dirs = {p.name for p in tmp_path.iterdir() if p.is_dir()}
+    assert "studies" in top_level_dirs, "ARC is missing 'studies' directory"
+    assert "assays" in top_level_dirs, "ARC is missing 'assays' directory"
+
+
+def test_arc_write_no_url_dirs_multiple_resources(
+    mapper: InspireMapper, sample_record: InspireRecord, tmp_path: Path
+) -> None:
+    """URL directories must not appear even with multiple online resources and overviews."""
+    sample_record.dataset_uri = "https://doi.org/10.1234/dataset"
+    sample_record.online_resources = [
+        OnlineResource(url="https://service.example.org/wms?SERVICE=WMS", name="WMS"),
+        OnlineResource(url="ftp://ftp.example.org/data.zip", name="FTP Download"),
+        OnlineResource(url="http://example.org/metadata", name="Metadata"),
+    ]
+    sample_record.graphic_overviews = [
+        "https://example.org/thumb1.png",
+        "https://example.org/thumb2.png",
+    ]
+
+    arc = mapper.map_record(sample_record)
+    contracts = list(arc.GetWriteContracts())
+    run_synchronously(full_fill_contract_batch_async(str(tmp_path), contracts))
+
+    all_dir_names = _collect_dir_names(str(tmp_path))
+
+    for d in all_dir_names:
+        assert not d.startswith("https:"), f"URL directory created: {d!r}"
+        assert not d.startswith("http:"), f"URL directory created: {d!r}"
+        assert not d.startswith("ftp:"), f"URL directory created: {d!r}"
+        assert "example.org" not in d, f"Domain directory created: {d!r}"
+        assert "doi.org" not in d, f"Domain directory created: {d!r}"

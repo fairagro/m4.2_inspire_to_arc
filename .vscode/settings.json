@@ -36,6 +36,15 @@
     "middleware/inspire/src"
   ],
 
+  "python.analysis.exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "**/.venv",
+    "**/venv",
+    "dev_environment"
+  ],
+
   // Pylint Extension Settings
   "pylint.args": [
     "--rcfile=${workspaceFolder}/pyproject.toml"

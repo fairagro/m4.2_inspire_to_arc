@@ -568,44 +568,82 @@ class InspireMapper:
         # Set Technology Platform (user suggested acquisitionInformation)
         assay.TechnologyPlatform = OntologyAnnotation(name="Satellite/Sensor Acquisition")
 
-        # Add an annotation table to the assay (as requested by user)
-        # These diverse outputs (online resources, overviews) are now in the table, not comments.
-        assay_table = self._create_assay_table(record)
-        if assay_table:
-            assay.AddTable(assay_table)
+        # Add the annotation table.
+        assay.AddTable(self._create_assay_table(record))
 
         return assay
 
-    def _create_assay_table(self, record: InspireRecord) -> ArcTable | None:
-        """Create annotation table for the assay, linking to final data outputs."""
-        outputs = []
-        if record.dataset_uri:
-            outputs.append(("Dataset Landing Page", record.dataset_uri))
-        for res in record.online_resources:
-            outputs.append((res.name or "Online Resource", res.url))
-        for url in record.graphic_overviews:
-            outputs.append(("Graphic Overview", url))
+    def _create_assay_table(self, record: InspireRecord) -> ArcTable:
+        """Create the assay annotation table (always exactly one row).
 
-        if not outputs:
-            return None
+        Columns:
+        - Input [Source Name]                : "Dataset Source" (always present)
+        - Output [URI]                       : dataSetURI (preferred) → first online-resource URL
+                                               → fallback slug "<id>_dataset"
+        - Comment [Online Resource]          : semicolon-joined online-resource URLs, if any
+                                               (first URL omitted when used as Output[URI] fallback)
+        - Comment [Online Resource Name]     : semicolon-joined resource names, if any
+        - Comment [Online Resource Protocol] : semicolon-joined protocols, if any
+        - Comment [Online Resource Description]: semicolon-joined descriptions, if any
+        - Comment [Online Resource Function] : semicolon-joined function codes, if any
+        - Comment [Graphic Overview]         : semicolon-joined graphic-overview URLs, if any
+
+        Columns whose values are all empty are omitted.  Output[URI] uses
+        IOType.of_string("URI") (FreeType tag 4), which is side-effect-free.
+        """
+        # Determine primary Output URI: dataSetURI > first online resource > slug
+        fallback_used = False
+        if record.dataset_uri:
+            output_uri: str = record.dataset_uri
+        elif record.online_resources:
+            output_uri = record.online_resources[0].url
+            fallback_used = True
+        else:
+            output_uri = f"{self._to_identifier_slug(record.title)}_dataset"
 
         table = ArcTable.init("Measurement")
+        table.AddColumn(CompositeHeader.input(IOType.source()), [CompositeCell.free_text("Dataset Source")])
+        table.AddColumn(
+            CompositeHeader.output(IOType.of_string("URI")),
+            [CompositeCell.free_text(output_uri)],
+        )
 
-        # Create parallel lists of cells for each column.
-        # URLs are stored as Comment free-text values, NOT as IOType.data() outputs.
-        # IOType.data() would cause arctrl's WriteAsync to treat the URL as a local
-        # file path, creating "https:/" directories on disk.
-        # CompositeHeader.comment() + CompositeCell.free_text() is the correct
-        # arctrl pair for arbitrary string values.
-        num_rows = len(outputs)
-        input_cells = [CompositeCell.free_text("Dataset Source")] * num_rows
-        name_cells = [CompositeCell.term(OntologyAnnotation(name=name)) for name, url in outputs]
-        url_cells = [CompositeCell.free_text(url) for name, url in outputs]
+        # Online-resource URLs (skip index 0 when it was used as the Output fallback)
+        online_urls = [res.url for i, res in enumerate(record.online_resources) if not (fallback_used and i == 0)]
+        if online_urls:
+            table.AddColumn(
+                CompositeHeader.comment("Online Resource"),
+                [CompositeCell.free_text(";".join(online_urls))],
+            )
 
-        # Add columns with their respective cell lists
-        table.AddColumn(CompositeHeader.input(IOType.source()), input_cells)
-        table.AddColumn(CompositeHeader.parameter(OntologyAnnotation(name="Resource Name")), name_cells)
-        table.AddColumn(CompositeHeader.comment("Resource URL"), url_cells)
+        # Additional CI_OnlineResource fields — each as a separate Comment column,
+        # omitted entirely when all resources have no value for that field.
+        def _joined(attr: str) -> str:
+            return ";".join(
+                getattr(res, attr) or ""
+                for i, res in enumerate(record.online_resources)
+                if not (fallback_used and i == 0)
+            )
+
+        for col_name, attr in [
+            ("Online Resource Name", "name"),
+            ("Online Resource Protocol", "protocol"),
+            ("Online Resource Description", "description"),
+            ("Online Resource Function", "function"),
+        ]:
+            value = _joined(attr)
+            if value.replace(";", "").strip():
+                table.AddColumn(
+                    CompositeHeader.comment(col_name),
+                    [CompositeCell.free_text(value)],
+                )
+
+        # Graphic-overview URLs
+        if record.graphic_overviews:
+            table.AddColumn(
+                CompositeHeader.comment("Graphic Overview"),
+                [CompositeCell.free_text(";".join(record.graphic_overviews))],
+            )
 
         return table
 

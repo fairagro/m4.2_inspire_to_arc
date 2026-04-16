@@ -6,6 +6,13 @@ library, and writes the resulting ARC directory structure to the local file
 system.
 """
 
+# This file is a standalone demo artefact, not part of the main package.
+# Its dependencies (fastapi, uvicorn) are only available inside the demo
+# container, not in the project virtualenv.  Suppressing all import/type
+# errors at the file level is intentional.
+# pylint: disable=import-error
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
+
 import json
 import os
 import re

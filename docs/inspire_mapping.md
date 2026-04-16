@@ -31,11 +31,11 @@ Metadata about the metadata record itself.
 | **dateStamp** | `datestamp` / `datetimestamp` | When metadata was created/updated | `Investigation.SubmissionDate` |
 | **metadataStandardName** | `stdname` | Standard name (ISO 19115, etc.) | `Investigation` comment (provenance) |
 | **metadataStandardVersion** | `stdver` | Standard version | `Investigation` comment (provenance) |
-| **dataSetURI** | `dataseturi` | Direct URI to the dataset | **Assay Annotation Table** (Output: Data, labeled "Dataset Landing Page") |
+| **dataSetURI** | `dataseturi` | Direct URI to the dataset | **Assay Annotation Table** `Output [URI]` (preferred Output value) |
 | **contact** | `contact` | Metadata point of contact | `Investigation.Contacts` (Person with role="metadata_contact") |
 | **referenceSystemInfo** | `referencesystem` | Coordinate Reference System (CRS) | **Spatial Sampling Protocol** parameter "CRS" |
 | **contentInfo** | `contentinfo` | Feature catalogue or image description | **Assay Protocol** "Feature Catalogue" or "Image Description" |
-| **distributionInfo** | `distribution` | How to obtain the data | **Assay Annotation Table** (Output: Data) |
+| **distributionInfo** | `distribution` | How to obtain the data | **Assay Annotation Table** `Comment [Online Resource]` (semicolon-joined URLs; if no `dataSetURI`, first URL promoted to `Output [URI]`) |
 | **dataQualityInfo** | `dataquality` | Data quality and lineage | **Protocol** "Data Processing" (conformance as parameters) |
 | **acquisitionInformation** | `acquisition` | Sensor/platform metadata (remote sensing) | **Assay Technology Platform** |
 
@@ -54,7 +54,7 @@ Core descriptive metadata about the dataset.
 | **purpose** | `purpose` | Why the dataset was created | `Study.Description` (in addition to lineage) |
 | **status** | `status` | Progress: completed, onGoing, planned, etc. | `Study` comment or Protocol parameter |
 | **pointOfContact** | `contact`, `creator`, `publisher`, `contributor` | Resource contacts by role | `Investigation.Contacts` (Person) split by role |
-| **graphicOverview** | `graphicoverview` | Thumbnail/preview image URLs | **Assay Annotation Table** (Output: Data) |
+| **graphicOverview** | `graphicoverview` | Thumbnail/preview image URLs | **Assay Annotation Table** `Comment [Graphic Overview]` (semicolon-joined URLs) |
 | **resourceConstraints** | Various constraint fields (see below) | Legal and security constraints | **Investigation Comments** |
 | **spatialRepresentationType** | `spatialrepresentationtype` | Vector, grid, TIN, etc. | `Assay.TechnologyType` or comment |
 | **spatialResolution** | `denominators`, `distance`, `uom` | Resolution (scale or distance) | **Study Protocol** "Spatial Resolution" with parameters |
@@ -115,7 +115,7 @@ Information about how to obtain the dataset.
 | **distributionFormat/version** | `version`, `version_url` | Format version | **Protocol** "Data Processing" parameter "Output Format" |
 | **distributionFormat/specification** | `specification`, `specification_url` | Format specification | **Protocol** "Data Processing" parameter "Output Format" |
 | **distributor/contact** | `distributor[].contact` | Distributor contact information | `Person` with role="distributor" |
-| **transferOptions/onLine** | `online` (list of CI_OnlineResource) | Download/access URLs | **Assay Annotation Table** (Output: Data) |
+| **transferOptions/onLine** | `online` (list of CI_OnlineResource) | Download/access URLs | **Assay Annotation Table** `Comment [Online Resource]` (semicolon-joined URLs) |
 
 ### 7. CI_OnlineResource (Online Resources)
 
@@ -123,11 +123,11 @@ URLs for data access, services, or documentation.
 
 | INSPIRE Field | OWSLib Attribute | Description | ARC Mapping |
 | --- | --- | --- | --- |
-| **linkage** | `url` | URL | **Assay Annotation Table** (Output: Data) |
-| **protocol** | `protocol`, `protocol_url` | Protocol (HTTP, FTP, OGC:WMS, etc.) | **Assay Annotation Table** (Output: Data) |
-| **name** | `name`, `name_url` | Resource name | **Assay Annotation Table** (Output: Data) |
-| **description** | `description`, `description_url` | Resource description | **Assay Annotation Table** (Output: Data) |
-| **function** | `function` | Function code (download, information, etc.) | **Assay Annotation Table** (Output: Data) |
+| **linkage** | `url` | URL | **Assay Annotation Table** `Comment [Online Resource]` (or `Output [URI]` fallback) |
+| **protocol** | `protocol`, `protocol_url` | Protocol (HTTP, FTP, OGC:WMS, etc.) | **Assay Annotation Table** `Comment [Online Resource Protocol]` (semicolon-joined; column omitted if all empty) |
+| **name** | `name`, `name_url` | Resource name | **Assay Annotation Table** `Comment [Online Resource Name]` (semicolon-joined; column omitted if all empty) |
+| **description** | `description`, `description_url` | Resource description | **Assay Annotation Table** `Comment [Online Resource Description]` (semicolon-joined; column omitted if all empty) |
+| **function** | `function` | Function code (download, information, etc.) | **Assay Annotation Table** `Comment [Online Resource Function]` (semicolon-joined; column omitted if all empty) |
 
 ### 8. DQ_DataQuality (Data Quality)
 
@@ -250,11 +250,16 @@ One INSPIRE record = One Study representing the data creation workflow.
 - **MeasurementType**: Derived from topicCategory with ontology mapping (e.g., "biota" → "Biological Measurement" [NCIT:C19026])
 - **TechnologyType**: "Data Collection"
 - **TechnologyPlatform**: `acquisitionInformation` (Satellite/Sensor platform)
-- **Annotation Table**:
-  - **Input**: "Dataset Source"
-  - **Parameter**: Resource Name (e.g., "Download", "Graphic Overview", "Dataset URI")
-  - **Output (Data)**: Resource URL (from `dataSetURI`, `online_resources`, or `graphic_overviews`)
-- **Comments/Remarks**: (none for resource links)
+- **Annotation Table** (always exactly one row):
+  - **Input [Source Name]**: `"Dataset Source"`
+  - **Output [URI]**: `dataSetURI` (preferred) → `online_resources[0].url` (fallback) → `"<slug>_dataset"` (last resort)
+  - **Comment [Online Resource]**: semicolon-joined online-resource URLs (present only if any exist; first URL omitted when used as `Output [URI]` fallback)
+  - **Comment [Online Resource Name]**: semicolon-joined resource names (omitted if all empty)
+  - **Comment [Online Resource Protocol]**: semicolon-joined protocol codes (omitted if all empty)
+  - **Comment [Online Resource Description]**: semicolon-joined descriptions (omitted if all empty)
+  - **Comment [Online Resource Function]**: semicolon-joined function codes (omitted if all empty)
+  - **Comment [Graphic Overview]**: semicolon-joined thumbnail URLs (present only if any exist)
+- **Comments/Remarks**: none (all resource URLs live in the table)
 
 ### Person (Contacts)
 
@@ -338,7 +343,7 @@ INSPIRE topic categories are mapped to specific ontology terms for precise seman
 
 ### 2. Dataset URI and Lineage URL
 
-**dataSetURI**: Mapped to Assay Annotation Table as "Dataset Landing Page" output resource.
+**dataSetURI**: Mapped to `Output [URI]` column in the Assay Annotation Table (single row). If absent, the first `online_resources` URL is used as fallback; if that is also absent, a slug fallback (`<id>_dataset`) is used.
 
 **lineage_url**: Added as parameter "Lineage Documentation URL" to Data Processing protocol.
 
