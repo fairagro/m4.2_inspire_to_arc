@@ -12,5 +12,5 @@ uv run mypy \
     -p middleware.api \
     -p middleware.api_client \
     -p middleware.shared \
-    -p middleware.inspire \
+    -p middleware.harvester \
     -p middleware.inspire
