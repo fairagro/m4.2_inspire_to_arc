@@ -224,3 +224,5 @@ helmchart/**/server.conf
 
 # ggshield cache
 .cache_ggshield
+
+dev_environment/demo_output

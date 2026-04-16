@@ -15,7 +15,7 @@ on:
         description: 'A JSON string array of components to build'
         required: false
         type: string
-        default: '["inspire_to_arc"]'
+        default: '["harvester"]'
     outputs:
       version:
         description: 'Calculated version'

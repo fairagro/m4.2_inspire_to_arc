@@ -88,15 +88,15 @@ Use `search` to locate:
 - The source module(s) responsible for the feature described in the spec.
 - Existing tests that cover that feature.
 
-The feature-to-module mapping for `middleware/inspire_to_arc`:
+The feature-to-module mapping for `middleware/inspire`:
 
 | Feature spec | Primary source file(s) |
 | ------------ | ---------------------- |
-| `inspire-to-arc-mapping/` | `src/middleware/inspire_to_arc/mapper.py` |
-| `csw-harvesting/` | `src/middleware/inspire_to_arc/harvester.py` |
-| `workflow-execution/` | `src/middleware/inspire_to_arc/main.py` |
-| `api-upload/` | `src/middleware/inspire_to_arc/main.py` |
-| `spec/configuration/` | `src/middleware/inspire_to_arc/config.py` |
+| `inspire-to-arc-mapping/` | `middleware/inspire/src/middleware/inspire/mapper.py` |
+| `csw-harvesting/` | `middleware/inspire/src/middleware/inspire/csw_client.py` |
+| `workflow-execution/` | `middleware/inspire/src/middleware/inspire/plugin.py` |
+| `api-upload/` | `middleware/harvester/src/middleware/harvester/main.py` |
+| `spec/configuration/` | `middleware/inspire/src/middleware/inspire/config.py` |
 
 For project-level specs (`spec/`) follow links in `AGENTS.md` to the
 affected component.
@@ -107,7 +107,7 @@ Apply all required source changes. Follow these rules without exception:
 
 - **Typed**: all public functions and methods must have full type annotations.
 - **No `os.environ`**: all config comes from `Config`.
-- **No CSW requests outside Harvester**: CSW queries live only in `harvester.py`.
+- **No CSW requests outside CSWClient**: CSW queries live only in `csw_client.py`.
 - **`SecretStr`**: use `.get_secret_value()` only at the point of use.
 - **Do not add `# noqa`, `# type: ignore`, or `# pylint: disable` comments**
   unless a real fix is technically impossible. Explain why if you must.
@@ -129,8 +129,8 @@ the template in `.agents/skills/create-specifica-feature/SKILL.md`.
 
 - Add a unit test for every new requirement.
 - Update or remove tests for removed/changed requirements.
-- Unit tests live in `middleware/inspire_to_arc/tests/unit/`.
-- Integration tests live in `middleware/inspire_to_arc/tests/integration/`.
+- Unit tests live in `middleware/inspire/tests/unit/`.
+- Integration tests live in `middleware/inspire/tests/integration/`.
 - Instantiate `Config` directly in unit tests; mock at the wrapper boundary
   in integration tests.
 
@@ -140,7 +140,7 @@ Run these commands in sequence:
 
 ```bash
 uv run ruff format .
-uv run pytest middleware/inspire_to_arc/tests/ -v
+uv run pytest middleware/inspire/tests/ -v
 ```
 
 Then check the VS Code **Problems** tab for any remaining Pylance / Mypy /

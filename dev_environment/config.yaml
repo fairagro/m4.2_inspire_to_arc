@@ -1,103 +1,102 @@
 log_level: DEBUG
 
-# csw_url: "https://repository-e.dataservice.zalf.de/catalogue/csw"
-# rdi: "bonares"
-
-csw_url: "https://www.geodatenkatalog.de/geonetwork/srv/ger/csw"
-rdi: "dwd"
-query: ~
-# CSW-Abfrage nach DWD Datensaetzen. Die Zahl der Treffer unterscheidet sich von der
-# Web-GUI (https://www.geoportal.de/search.html?q=Deutscher%20Wetterdienst,
-# https://www.geoportal.de/search.html?q=DWD)
-xml_request: |
-  <?xml version="1.0" encoding="UTF-8"?>
-  <csw:GetRecords
-      xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
-      xmlns:ogc="http://www.opengis.net/ogc"
-      service="CSW"
-      version="2.0.2"
-      resultType="results"
-      outputFormat="application/xml"
-      outputSchema="http://www.isotc211.org/2005/gmd"
-      startPosition="1"
-      maxRecords="50">
-
-    <csw:Query typeNames="csw:Record">
-      <csw:ElementSetName>summary</csw:ElementSetName>
-      <csw:Constraint version="1.1.0">
-        <ogc:Filter>
-          <ogc:And>
-            <ogc:Or>
-          <ogc:PropertyIsEqualTo>
-            <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-            <ogc:Literal>Deutscher Wetterdienst</ogc:Literal>
-          </ogc:PropertyIsEqualTo>
-          <ogc:PropertyIsEqualTo>
-            <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-            <ogc:Literal>DWD</ogc:Literal>
-          </ogc:PropertyIsEqualTo>
-          <ogc:PropertyIsEqualTo>
-            <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-            <ogc:Literal>Deutscher Wetterdienst (DWD)</ogc:Literal>
-          </ogc:PropertyIsEqualTo>
-          <ogc:PropertyIsEqualTo>
-            <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-            <ogc:Literal>Deutscher Wetterdienst (DWD</ogc:Literal>
-          </ogc:PropertyIsEqualTo>
-          <ogc:PropertyIsEqualTo>
-            <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-            <ogc:Literal>Deutscher Wetterdienst (RD)</ogc:Literal>
-          </ogc:PropertyIsEqualTo>
-          <ogc:PropertyIsEqualTo>
-            <ogc:PropertyName>OrganisationName</ogc:PropertyName>
-            <ogc:Literal>Deutscher Wetterdienst (ZAK)</ogc:Literal>
-          </ogc:PropertyIsEqualTo>
-            </ogc:Or>
-            <ogc:PropertyIsEqualTo>
-              <ogc:PropertyName>Type</ogc:PropertyName>
-              <ogc:Literal>dataset</ogc:Literal>
-            </ogc:PropertyIsEqualTo>
-            <ogc:Or>
-              <ogc:PropertyIsEqualTo>
-                <ogc:PropertyName>ResponsiblePartyRole</ogc:PropertyName>
-                <ogc:Literal>originator</ogc:Literal>
-              </ogc:PropertyIsEqualTo>
-              <ogc:PropertyIsEqualTo>
-                <ogc:PropertyName>ResponsiblePartyRole</ogc:PropertyName>
-                <ogc:Literal>pointOfContact</ogc:Literal>
-              </ogc:PropertyIsEqualTo>
-              <ogc:PropertyIsEqualTo>
-                <ogc:PropertyName>ResponsiblePartyRole</ogc:PropertyName>
-                <ogc:Literal>publisher</ogc:Literal>
-              </ogc:PropertyIsEqualTo>
-            </ogc:Or>
-            <ogc:Not>
-              <ogc:Or>
-                <ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\">
-                  <ogc:PropertyName>Title</ogc:PropertyName>
-                  <ogc:Literal>%Model Output Statistics%</ogc:Literal>
-                </ogc:PropertyIsLike>
-                <ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\">
-                  <ogc:PropertyName>Title</ogc:PropertyName>
-                  <ogc:Literal>%GTS Bulletin%</ogc:Literal>
-                </ogc:PropertyIsLike>
-                <ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\">
-                  <ogc:PropertyName>Title</ogc:PropertyName>
-                  <ogc:Literal>%Meteogramm%</ogc:Literal>
-                </ogc:PropertyIsLike>
-              </ogc:Or>
-            </ogc:Not>
-          </ogc:And>
-        </ogc:Filter>
-      </csw:Constraint>
-    </csw:Query>
-
-  </csw:GetRecords>
+repositories:
+  - rdi: "dwd"
+    inspire:
+      csw_url: "https://www.geodatenkatalog.de/geonetwork/srv/ger/csw"
+      query: ~
+      # CSW-Abfrage nach DWD Datensaetzen. Die Zahl der Treffer unterscheidet sich von der
+      # Web-GUI (https://www.geoportal.de/search.html?q=Deutscher%20Wetterdienst,
+      # https://www.geoportal.de/search.html?q=DWD)
+      xml_request: |
+        <?xml version="1.0" encoding="UTF-8"?>
+        <csw:GetRecords
+            xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+            xmlns:ogc="http://www.opengis.net/ogc"
+            service="CSW"
+            version="2.0.2"
+            resultType="results"
+            outputFormat="application/xml"
+            outputSchema="http://www.isotc211.org/2005/gmd"
+            startPosition="1"
+            maxRecords="50">
+      
+          <csw:Query typeNames="csw:Record">
+            <csw:ElementSetName>summary</csw:ElementSetName>
+            <csw:Constraint version="1.1.0">
+              <ogc:Filter>
+                <ogc:And>
+                  <ogc:Or>
+                <ogc:PropertyIsEqualTo>
+                  <ogc:PropertyName>OrganisationName</ogc:PropertyName>
+                  <ogc:Literal>Deutscher Wetterdienst</ogc:Literal>
+                </ogc:PropertyIsEqualTo>
+                <ogc:PropertyIsEqualTo>
+                  <ogc:PropertyName>OrganisationName</ogc:PropertyName>
+                  <ogc:Literal>DWD</ogc:Literal>
+                </ogc:PropertyIsEqualTo>
+                <ogc:PropertyIsEqualTo>
+                  <ogc:PropertyName>OrganisationName</ogc:PropertyName>
+                  <ogc:Literal>Deutscher Wetterdienst (DWD)</ogc:Literal>
+                </ogc:PropertyIsEqualTo>
+                <ogc:PropertyIsEqualTo>
+                  <ogc:PropertyName>OrganisationName</ogc:PropertyName>
+                  <ogc:Literal>Deutscher Wetterdienst (DWD</ogc:Literal>
+                </ogc:PropertyIsEqualTo>
+                <ogc:PropertyIsEqualTo>
+                  <ogc:PropertyName>OrganisationName</ogc:PropertyName>
+                  <ogc:Literal>Deutscher Wetterdienst (RD)</ogc:Literal>
+                </ogc:PropertyIsEqualTo>
+                <ogc:PropertyIsEqualTo>
+                  <ogc:PropertyName>OrganisationName</ogc:PropertyName>
+                  <ogc:Literal>Deutscher Wetterdienst (ZAK)</ogc:Literal>
+                </ogc:PropertyIsEqualTo>
+                  </ogc:Or>
+                  <ogc:PropertyIsEqualTo>
+                    <ogc:PropertyName>Type</ogc:PropertyName>
+                    <ogc:Literal>dataset</ogc:Literal>
+                  </ogc:PropertyIsEqualTo>
+                  <ogc:Or>
+                    <ogc:PropertyIsEqualTo>
+                      <ogc:PropertyName>ResponsiblePartyRole</ogc:PropertyName>
+                      <ogc:Literal>originator</ogc:Literal>
+                    </ogc:PropertyIsEqualTo>
+                    <ogc:PropertyIsEqualTo>
+                      <ogc:PropertyName>ResponsiblePartyRole</ogc:PropertyName>
+                      <ogc:Literal>pointOfContact</ogc:Literal>
+                    </ogc:PropertyIsEqualTo>
+                    <ogc:PropertyIsEqualTo>
+                      <ogc:PropertyName>ResponsiblePartyRole</ogc:PropertyName>
+                      <ogc:Literal>publisher</ogc:Literal>
+                    </ogc:PropertyIsEqualTo>
+                  </ogc:Or>
+                  <ogc:Not>
+                    <ogc:Or>
+                      <ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\">
+                        <ogc:PropertyName>Title</ogc:PropertyName>
+                        <ogc:Literal>%Model Output Statistics%</ogc:Literal>
+                      </ogc:PropertyIsLike>
+                      <ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\">
+                        <ogc:PropertyName>Title</ogc:PropertyName>
+                        <ogc:Literal>%GTS Bulletin%</ogc:Literal>
+                      </ogc:PropertyIsLike>
+                      <ogc:PropertyIsLike wildCard="%" singleChar="_" escapeChar="\">
+                        <ogc:PropertyName>Title</ogc:PropertyName>
+                        <ogc:Literal>%Meteogramm%</ogc:Literal>
+                      </ogc:PropertyIsLike>
+                    </ogc:Or>
+                  </ogc:Not>
+                </ogc:And>
+              </ogc:Filter>
+            </csw:Constraint>
+          </csw:Query>
+      
+        </csw:GetRecords>
 
 api_client:
   api_url: "https://middleware.fairagro.net"
   timeout: 60.0
-  client_cert_path: "/etc/inspire_to_arc/client.crt"
+  client_cert_path: "/etc/inspire/client.crt"
   client_key_path: "/run/secrets/client.key"
   verify_ssl: true
   max_retries: 3

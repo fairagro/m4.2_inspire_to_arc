@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Start inspire_to_arc locally with a local DB, but connecting to an EXTERNAL Middleware API.
+# Start inspire locally with a local DB, but connecting to an EXTERNAL Middleware API.
 #
 # Usage:
 #   ./start-external.sh              # Start services

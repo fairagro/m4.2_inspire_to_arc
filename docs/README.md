@@ -1,9 +1,9 @@
 # General README
 
-## Run inspire_to_arc
+## Run inspire
 
 ### Local run without docker build
 
 ```bash
-python ./middleware/inspire_to_arc/src/middleware/inspire_to_arc/main.py -c dev_environment/config.local.yaml
+python ./middleware/inspire/src/middleware/inspire/main.py -c dev_environment/config.local.yaml
 ```

@@ -3,19 +3,13 @@
   // For AI assistant instructions, see: copilot-instructions.md
   // For detailed project context, see: AGENTS.md
 
-  "python.testing.pytestArgs": [],
-  "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
-  "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
+  "python.testing.pytestPath": ".venv/bin/pytest",
   "python.testing.cwd": "${workspaceFolder}",
-  "python-envs.pythonProjects": [
-    {
-      "path": "${workspaceFolder}",
-      "envManager": "ms-python.python:venv",
-      "envPath": "${workspaceFolder}/.venv"
-    }
-  ],
+  "python.testing.pytestArgs": [],
+  "python.testing.unittestEnabled": false,
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
 
   // Code formatting - use ruff for both linting and formatting
   "[python]": {
@@ -37,9 +31,18 @@
   "ruff.configuration": "./pyproject.toml",
   "ruff.path": ["uv", "run", "ruff"],
   "ruff.importStrategy": "fromEnvironment",
-  "python-envs.defaultEnvManager": "ms-python.python:venv",
+
   "python.analysis.extraPaths": [
-    "middleware/inspire_to_arc/src"
+    "middleware/inspire/src"
+  ],
+
+  "python.analysis.exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "**/.venv",
+    "**/venv",
+    "dev_environment"
   ],
 
   // Pylint Extension Settings

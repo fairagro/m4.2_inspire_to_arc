@@ -100,9 +100,16 @@ responsibilities.
 **Rules for Key Decisions:**
 
 - Every decision has a stated reason (the `—` clause is mandatory).
-- "We chose X over Y because Z" is the target sentence structure.
+- "We chose X because Z" is the target sentence structure. Mentioning a
+  rejected alternative is allowed when the contrast clarifies the reasoning,
+  but it must appear in the `—` body, never in the title.
 - Decisions are numbered so they can be referenced from code comments
   or other specs.
+- **Decisions describe the current state of the system, not a history of
+  changes.** Do not write "we changed from X to Y" or "previously we used X".
+  A reader arriving for the first time must be able to understand the decision
+  without knowing what came before. When a decision changes, rewrite it in
+  place; the old reasoning has no value once it is superseded.
 
 ---
 

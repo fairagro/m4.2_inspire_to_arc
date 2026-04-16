@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "inspire_to_arc",
+            "name": "inspire (harvester)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/middleware/inspire_to_arc/src/middleware/inspire_to_arc/main.py",
+            "program": "${workspaceFolder}/middleware/harvester/src/middleware/harvester/main.py",
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/dev_environment/.env",
             "args": [

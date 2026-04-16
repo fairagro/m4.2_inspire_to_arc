@@ -14,7 +14,7 @@ on:
         description: 'A JSON string array of components to release'
         required: false
         type: string
-        default: '["inspire_to_arc"]'
+        default: '["harvester"]'
       release_type:
         description: 'Type of release (feature or final)'
         required: true

@@ -38,6 +38,7 @@ For every config field, the wrapper resolves values in this order:
 4. **Pydantic field default**
 
 Nested fields use `_` as path separator:
+
 - `api_client.api_url` with prefix `MY_APP` → `MY_APP_API_CLIENT_API_URL`
 
 ---
@@ -45,7 +46,7 @@ Nested fields use `_` as path separator:
 ## Type Coercion (env / secret values are always strings)
 
 | String value | Parsed as |
-|---|---|
+| --- | --- |
 | `"true"` / `"True"` / `"TRUE"` | `True` (bool) |
 | `"false"` / `"False"` / `"FALSE"` | `False` (bool) |
 | `"123"` | `123` (int) |
@@ -81,6 +82,12 @@ class Config(ConfigBase):  # or BaseModel if ConfigBase fields aren't needed
 
 ---
 
+## ConfigBase vs PluginConfig
+
+**Use `ConfigBase`** (from `middleware.shared`) only for **top-level component configs** — i.e., the `Config` class that is loaded from a YAML file via `ConfigWrapper`. It adds `log_level`, `otel`, and `from_config_wrapper`.
+
+---
+
 ## ConfigBase (optional convenience base)
 
 `ConfigBase` from `middleware.shared` is a FAIRagro-specific convenience class.
@@ -95,6 +102,7 @@ otel: OtelConfig  # OpenTelemetry settings
 ```
 
 `OtelConfig` fields:
+
 - `endpoint: str | None` — OTLP collector URL
 - `log_console_spans: bool` — print spans to stdout
 - `log_level: LogLevel` — OTLP log export level
@@ -108,6 +116,61 @@ otel: OtelConfig  # OpenTelemetry settings
   or log them directly.
 - Docker secrets: mount files to `/run/secrets/`; the wrapper resolves them
   automatically using the full key name (lowercase).
+
+---
+
+## Typing Rule
+
+All `ConfigBase`/`BaseModel` subclasses **must be fully typed** — `dict[str, Any]` and bare `Any` fields are forbidden.
+
+When a config field holds a nested config, declare its **concrete Pydantic type**:
+
+```python
+# ✗ Wrong — loses schema validation and type safety
+config: dict[str, Any]
+
+# ✓ Correct — Pydantic validates at startup; IDE support works
+config: Annotated[InspireToArcConfig, Field(description="Inspire plugin configuration")]
+```
+
+---
+
+## Defaults Rule
+
+**All defaults belong in the `Config` class — never in application code.**
+
+If application code needs a fallback value (e.g. `sys.maxsize`, a hardcoded constant, or a magic number), that value belongs as a Pydantic field default in the relevant `Config` class instead. This makes the default visible, overridable via env/secret/YAML, and documented.
+
+```python
+# ✗ Wrong — default hidden in application code, not overridable
+effective_max = config.max_records if config.max_records is not None else sys.maxsize
+
+# ✓ Correct — default declared in Config, code uses it directly
+class Config(BaseModel):
+    chunk_size: Annotated[int, Field(description="Records per page.", ge=1)] = 10
+
+# in code:
+records_iter = csw_client.get_records(chunk_size=config.chunk_size)
+```
+
+---
+
+## Plugin Config Pattern
+
+```python
+class RepositoryConfig(BaseModel):
+    inspire: Annotated[InspireToArcConfig | None, Field(description="INSPIRE CSW plugin")] = None
+    # future_plugin: Annotated[FuturePluginConfig | None, Field(...)] = None
+
+    @model_validator(mode="after")
+    def exactly_one_plugin(self) -> "RepositoryConfig":
+        set_fields = [f for f, v in self.__dict__.items() if v is not None]
+        if len(set_fields) != 1:
+            raise ValueError(f"Exactly one plugin key must be set; got: {set_fields}")
+        return self
+```
+
+This keeps each plugin's configuration schema self-contained and avoids the catch-all `dict[str, Any]` anti-pattern.
 
 ---
 

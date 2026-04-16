@@ -22,11 +22,11 @@ One-time initialization container that:
 - Downloads and imports the Edaphobase dump from <https://repo.edaphobase.org/rep/dumps/FAIRagro.sql>
 - Exits after completion
 
-### 3. inspire_to_arc
+### 3. inspire
 
 The SQL-to-ARC converter that:
 
-- Builds from `../docker/Dockerfile.inspire_to_arc`
+- Builds from `../docker/Dockerfile.harvester`
 - Waits for db-init to complete
 - Connects to PostgreSQL and Middleware API
 - Mounts encrypted secrets via sops
@@ -70,7 +70,7 @@ With image rebuild:
 
 ### Start with External Middleware API
 
-If you want to run `inspire_to_arc` against an external API server (e.g. production or staging) that requires client certificates:
+If you want to run `inspire` against an external API server (e.g. production or staging) that requires client certificates:
 
 1. Copy your client certificate and key to `dev_environment/client.crt` and `dev_environment/client.key`.
 2. Edit `dev_environment/config-external.yaml` and set the `api_url` to the external endpoint.
@@ -80,14 +80,14 @@ If you want to run `inspire_to_arc` against an external API server (e.g. product
 ./start-external.sh
 ```
 
-This starts only `postgres`, `db-init`, and `inspire_to_arc`.
+This starts only `postgres`, `db-init`, and `inspire`.
 
 ### View Logs
 
 ```bash
 docker compose logs -f
 docker compose logs -f postgres
-docker compose logs -f inspire_to_arc
+docker compose logs -f inspire
 ```
 
 ### Stop Services
@@ -130,7 +130,7 @@ The `start.sh` script uses `sops exec-file` to temporarily decrypt `client.key` 
 
 ### config.yaml
 
-Application configuration for inspire_to_arc:
+Application configuration for inspire:
 
 - `db_host`: Set to `postgres` (Docker service name)
 - `api_client.client_cert_path`: `/run/secrets/client.crt`
@@ -143,7 +143,7 @@ postgres (healthcheck)
   ↓
 db-init (waits for healthy postgres)
   ↓
-inspire_to_arc (waits for db-init completion)
+inspire (waits for db-init completion)
 ```
 
 ## Troubleshooting
@@ -161,12 +161,12 @@ Common issues:
 - Network timeout downloading dump → retry with `docker compose up db-init`
 - PostgreSQL not ready → check postgres healthcheck
 
-### inspire_to_arc fails
+### inspire fails
 
 Check logs:
 
 ```bash
-docker compose logs inspire_to_arc
+docker compose logs inspire
 ```
 
 Common issues:
@@ -178,8 +178,8 @@ Common issues:
 ### Rebuild specific service
 
 ```bash
-docker compose build inspire_to_arc
-docker compose up inspire_to_arc
+docker compose build inspire
+docker compose up inspire
 ```
 
 ## Manual Usage (without start.sh)
@@ -193,16 +193,16 @@ docker compose up -d postgres db-init
 # Wait for initialization
 docker compose logs -f db-init
 
-# Run inspire_to_arc manually (after decrypting secrets)
+# Run inspire manually (after decrypting secrets)
 sops exec-file client.key \
-  'docker compose run --rm inspire_to_arc'
+  'docker compose run --rm inspire'
 ```
 
 ## Development Workflow
 
-1. Make changes to inspire_to_arc code
+1. Make changes to inspire code
 2. Rebuild image: `./start.sh --build`
-3. View logs: `docker compose logs -f inspire_to_arc`
+3. View logs: `docker compose logs -f inspire`
 4. Iterate
 
 ## Files

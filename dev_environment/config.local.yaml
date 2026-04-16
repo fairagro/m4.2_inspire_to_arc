@@ -1,16 +1,18 @@
 log_level: DEBUG
 
-csw_url: "https://repository-e.dataservice.zalf.de/catalogue/csw"
-# csw_url: https://stable.demo.geonode.org/catalogue/csw
-rdi: "bonares"
-query: ~
-xml_request: ~
+repositories:
+  - rdi: "bonares"
+    inspire:
+      csw_url: "https://repository-e.dataservice.zalf.de/catalogue/csw"
+      # csw_url: https://stable.demo.geonode.org/catalogue/csw
+      query: ~
+      xml_request: ~
 
 api_client:
   api_url: "https://middleware.fairagro.net"
   timeout: 60.0
-  client_cert_path: "/workspaces/m4.2_inspire_to_arc-vscode/dev_environment/client.crt"
-  client_key_path: "/workspaces/m4.2_inspire_to_arc-vscode/dev_environment/client.decrypted.key"
+  client_cert_path: "/workspaces/m4.2_inspire-vscode/dev_environment/client.crt"
+  client_key_path: "/workspaces/m4.2_inspire-vscode/dev_environment/client.decrypted.key"
   verify_ssl: true
   max_retries: 3
   retry_backoff_factor: 1.0

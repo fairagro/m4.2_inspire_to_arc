@@ -109,8 +109,8 @@ spec/                          ← Project-level (cross-cutting concerns)
 └── demo-environment/          # Local deployment setup
 
 middleware/
-└── inspire_to_arc/
-    └── spec/                  ← Component-level (inspire_to_arc internals)
+└── inspire/
+    └── spec/                  ← Component-level (inspire internals)
         ├── csw-harvesting/
         ├── inspire-to-arc-mapping/
         ├── api-upload/
@@ -188,7 +188,7 @@ When an agent starts a task it:
 
 ### Example: Fixing an ARC Serialization Bug
 
-1. `AGENTS.md` links to `middleware/inspire_to_arc/spec/arc-building/`.
+1. `AGENTS.md` links to `middleware/inspire/spec/arc-building/`.
 2. Agent reads `arc-building/design.md` → understands key decisions (no
    `OntologySourceReference`, 7-tuple column key, explicit GC).
 3. Agent loads the `arctrl` skill → gets the correct API surface.
@@ -243,14 +243,14 @@ The `create-specifica-feature` skill guides Copilot through the full process.
 **Example prompt** (Copilot Chat, Agent mode):
 
 > Use the `create-specifica-feature` skill to create a new component-level
-> spec for a "result-export" feature in `middleware/inspire_to_arc`. The feature
+> spec for a "result-export" feature in `middleware/inspire`. The feature
 > writes ARC RO-Crate files to a local output directory as a fallback when
 > the API is unreachable.
 
 Copilot will:
 
 1. Load the `create-specifica-feature` skill.
-2. Choose the right location: `middleware/inspire_to_arc/spec/result-export/`
+2. Choose the right location: `middleware/inspire/spec/result-export/`
    (component-level, not project-level — affects only this component).
 3. Create `spec.md` with a one-sentence purpose, `## Requirements` as
    `- [ ]` checkboxes, and `## Edge Cases` as scenario → outcome pairs.
@@ -261,7 +261,7 @@ Copilot will:
 The finished folder will look like:
 
 ```text
-middleware/inspire_to_arc/spec/result-export/
+middleware/inspire/spec/result-export/
 ├── spec.md    ← what it must do
 └── design.md  ← how it works and why
 ```

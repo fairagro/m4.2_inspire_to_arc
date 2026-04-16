@@ -1,6 +1,6 @@
 # AGENTS.md - Instructions for AI Assistants
 
-This file contains critical context about the FAIRagro INSPIRE-to-ARC Harvester project for AI assistants (GitHub Copilot, Google Antigravity, Claude, etc.).
+This file contains critical context about the FAIRagro Middleware Harvester project for AI assistants (GitHub Copilot, Google Antigravity, Claude, etc.).
 
 ## 📋 Tech Stack
 
@@ -26,21 +26,23 @@ docs/
 └── ai_workflow.md         # AI agent workflow documentation
 
 spec/                      # Project-level architecture & design
-├── principles.md          # Project principles and foundation contract
-├── configuration/         # Config loading, env overrides, secrets
-└── demo-environment/      # Local demo / deployment setup
+└── principles.md          # Project principles and foundation contract
 
 middleware/
-└── inspire_to_arc/        # INSPIRE to ARC harvester (Core logic)
-    ├── spec/              # Component-level architecture & design
+├── harvester/             # Central orchestrator and configuration
+│   └── spec/              # Component-level architecture & design
+│       ├── harvester-orchestration/  # Orchestration loop and plugin contract
+│       └── configuration/            # Configuration file structure
+├── inspire/        # INSPIRE to ARC harvester (Core logic)
+│   ├── spec/              # Component-level architecture & design
     │   ├── csw-harvesting/          # CSW connections and logic
     │   ├── inspire-to-arc-mapping/  # Mapping to ARC concepts
-    │   ├── api-upload/              # API upload semantics
     │   └── workflow-execution/      # The processing loop
-    ├── src/middleware/inspire_to_arc/
-    │   ├── main.py        # Entry point & processing loop
-    │   ├── harvester.py   # CSW client and ISO 19139 parser
+    ├── src/middleware/inspire/
+    │   ├── plugin.py      # Plugin generator (run_plugin AsyncGenerator)
+    │   ├── csw_client.py  # CSW client and ISO 19139 parser
     │   ├── mapper.py      # INSPIRE to ARC mapping logic
+    │   ├── models.py      # Pydantic domain models (InspireRecord, Contact, etc.)
     │   ├── config.py      # Configuration model
     │   └── errors.py      # Custom exceptions
     └── tests/
@@ -53,15 +55,15 @@ middleware/
 ### Always use `uv` for Python
 
 ```bash
-# Run tests for the harvester
-uv run pytest middleware/inspire_to_arc/tests/ -v
+# Run tests
+uv run pytest middleware/ -v
 
-# Run individual quality tools
-uv run ruff check .
-uv run ruff format .
-uv run mypy middleware/inspire_to_arc/
-uv run pylint middleware/inspire_to_arc/
-uv run bandit -r middleware/inspire_to_arc/src/
+# Quality checks (all read config from pyproject.toml — see spec/principles.md)
+uv run ruff format --check middleware/
+uv run ruff check middleware/
+uv run mypy middleware/
+uv run pylint middleware/
+uv run bandit -r middleware/ -c .bandit -ll
 
 # Install/Update all dependencies
 uv sync --dev --all-packages
@@ -70,26 +72,30 @@ uv sync --dev --all-packages
 ### Execution
 
 ```bash
-# Run the harvester with a config file
-uv run python -m middleware.inspire_to_arc.main -c config.yaml
+uv run python -m middleware.harvester.main -c config.yaml
 ```
 
 ## Architecture & Design
 
-Before generating or modifying code, read the relevant spec folders.
+**Read [`spec/principles.md`](spec/principles.md) first.** It defines the plugin contract, module dependency rules, values, constraints, and code quality requirements. Do not restate what is there.
+
+Before generating or modifying code, read the relevant spec folders:
 
 **Project-level** (`spec/`) — cross-cutting concerns:
 
-- **[`spec/principles.md`](spec/principles.md)** — Project principles and foundation contract (start here).
-- **[`spec/configuration/`](spec/configuration/)** — Config loading and secrets.
-- **[`spec/demo-environment/`](spec/demo-environment/)** — Local demo / deployment setup.
+- **[`spec/principles.md`](spec/principles.md)** — Authoritative project principles (start here).
+- **[`spec/error-handling/`](spec/error-handling/)** — Centralized exception hierarchy and generator yielding patterns.
+- **[`spec/demo-environment/`](spec/demo-environment/)** — One-command local demo environment (mock API + harvester).
 
-**Component-level** (`middleware/inspire_to_arc/spec/`) — inspire_to_arc internals:
+**Harvester component** (`middleware/harvester/spec/`) — orchestrator internals:
 
-- **[`middleware/inspire_to_arc/spec/csw-harvesting/`](middleware/inspire_to_arc/spec/csw-harvesting/)** — Polling standard CSW endpoints and ISO 19139 batch fetching logic.
-- **[`middleware/inspire_to_arc/spec/inspire-to-arc-mapping/`](middleware/inspire_to_arc/spec/inspire-to-arc-mapping/)** — Rules transforming InspireRecord to ArcInvestigation/Study/Assay/Protocols.
-- **[`middleware/inspire_to_arc/spec/api-upload/`](middleware/inspire_to_arc/spec/api-upload/)** — Logic controlling ARC uploads to the Middleware.
-- **[`middleware/inspire_to_arc/spec/workflow-execution/`](middleware/inspire_to_arc/spec/workflow-execution/)** — Global orchestrator workflow loop.
+- **[`middleware/harvester/spec/harvester-orchestration/`](middleware/harvester/spec/harvester-orchestration/)** — Orchestration loop and plugin `AsyncGenerator` contract.
+- **[`middleware/harvester/spec/configuration/`](middleware/harvester/spec/configuration/)** — Configuration file structure, plugin field typing, and mutual-exclusion validation.
+
+**Component-level** (`middleware/inspire/spec/`) — inspire internals:
+
+- **[`middleware/inspire/spec/csw-harvesting/`](middleware/inspire/spec/csw-harvesting/)** — Polling standard CSW endpoints and ISO 19139 batch fetching logic.
+- **[`middleware/inspire/spec/inspire-to-arc-mapping/`](middleware/inspire/spec/inspire-to-arc-mapping/)** — Rules transforming InspireRecord to ArcInvestigation/Study/Assay/Protocols.
 
 ---
 
@@ -99,45 +105,15 @@ Before generating or modifying code, read the relevant spec folders.
 
 This project depends on `shared` and `api_client` libraries, which are hosted in a separate repository (`m4.2_advanced_middleware_api`). They are included via `uv` workspace sources pointing to Git.
 
-### INSPIRE-to-ARC Mapping (`middleware/inspire_to_arc/src/middleware/inspire_to_arc/mapper.py`)
-
-**Purpose**: Transforms INSPIRE-compliant metadata (ISO 19139 XML) into standardized Annotated Research Context (ARC) objects using the `arctrl` library.
-
-**Philosophy**:
-
-- Every INSPIRE record is mapped to an ISA Investigation.
-- Metadata is translated into Protocols, Parameters, and Ontology Annotations.
-- Lineage information is preserved in Study and Assay descriptions.
-
-### API Client Integration
-
-The harvester uses the `api_client` to upload ARCs to the FAIRagro Middleware API.
-**Note**: The current `api_client` does NOT support batching. ARCs are uploaded individually and sequentially using `client.create_or_update_arc`.
-
-## 🧪 Testing Strategy
-
-### Test Locations
-
-- `middleware/inspire_to_arc/tests/unit/` - Isolated logic tests with mocked CSW records.
-- `middleware/inspire_to_arc/tests/integration/` - End-to-end workflow tests using sample CSW endpoints.
-
-## ✨ Code Quality Standards
-
-Agents are expected to maintain high code quality by addressing issues reported by the project's configured tools: **Ruff, MyPy, Pylint, and Bandit**.
-
-- **Automatic Fixes**: Actively check for and fix code smells, warnings, and notices.
-- **Real Fixes vs. Suppression**: Issues must be resolved with actual code changes. Using comments to suppress warnings (e.g., `# noqa`, `# type: ignore`, `# pylint: disable`) is an **option of last resort**.
-- **When to Suppress**: Only suppress if a fix is technically impossible or would result in unnecessarily complex or unreadable code.
-
 ## 📚 File Modifications Pattern
 
 When editing files:
 
 1. **Always check current state** - Use file viewing tools to see current content.
 2. **Review for quality** - Check the VS Code **Problems** tab.
-3. **Format and test after changes** - Run `uv run ruff format .` to auto-format, then `uv run pytest` to verify.
+3. **Format and test after changes** - Run `uv run ruff format middleware/` to auto-format, then `uv run pytest` to verify.
 
 ---
 
-**Last Updated**: 2026-04-14
-**Maintainer Notes**: This repository is the standalone INSPIRE harvester. It is decoupled from the main Middleware API.
+**Last Updated**: 2026-04-16
+**Maintainer Notes**: This repository is the standalone Middleware Harvester. It is decoupled from the main Middleware API.

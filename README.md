@@ -1,20 +1,20 @@
-# FAIRagro INSPIRE-to-ARC Middleware
+# FAIRagro Middleware Harvester
 
-This repository contains the INSPIRE-to-ARC harvesting middleware. It harvests geospatial metadata from INSPIRE-compliant CSW (Catalogue Service for the Web) endpoints and converts them into ARC objects, which are then uploaded to the FAIRagro Middleware API.
+This repository contains the Middleware Harvester. It acts as an orchestrator that runs specialized harvesting plugins (like the INSPIRE-to-ARC converter). It harvests metadata from configured sources, converts them into ARC objects, and uploads them to the FAIRagro Middleware API.
 
 ## 🚀 Usage Examples
 
 ### Basic Querying
 
 ```python
-from middleware.inspire_to_arc.harvester import CSWClient
+from middleware.inspire.harvester import CSWClient
 
 # Connect to GDI-DE CSW
 client = CSWClient("https://gdk.gdi-de.org/gdi-de/srv/eng/csw")
 client.connect()
 
 # Fetch records
-records = list(client.get_records(max_records=10))
+records = list(client.get_records(chunk_size=10))
 ```
 
 ### Advanced Filtering with FES
@@ -32,7 +32,7 @@ constraints = [
     ])
 ]
 
-records = list(client.get_records(constraints=constraints, max_records=100))
+records = list(client.get_records(constraints=constraints, chunk_size=100))
 ```
 
 ### Raw XML Queries
@@ -59,16 +59,17 @@ The middleware consists of three main layers:
 2. **Harvester (`harvester.py`):** Interaction layer with CSW endpoints using `owslib`. It parses ISO 19139 XML records into an internal `InspireRecord` Pydantic model.
 3. **Mapper (`mapper.py`):** Specialized logic for translating INSPIRE/ISO fields into ARC objects (Investigation, Study, Assay) using `arctrl`.
 
-Detailed documentation can be found in [docs/ARCHITECTURAL_DESIGN.md](docs/ARCHITECTURAL_DESIGN.md).
+## 🗺 Overview & Documentation
 
-## 🗺 Mapping Documentation
+The definitive entry point for AI Agents and architecture is:
+👉 **[AGENTS.md](AGENTS.md)**
 
-The detailed strategy for mapping INSPIRE/ISO 19139 fields to the ISA model (Investigation, Study, Assay) is documented in:
-👉 **[docs/mapping.md](docs/mapping.md)**
+The detailed strategy for mapping INSPIRE/ISO 19139 fields to the ISA model is documented in:
+👉 **[docs/inspire_mapping.md](docs/inspire_mapping.md)**
 
 ## 📁 Project Structure
 
-- `middleware/inspire_to_arc`: The core harvesting and mapping logic.
+- `middleware/inspire`: The core harvesting and mapping logic.
 - `docker/`: Dockerfiles and container structure tests.
 - `dev_environment/`: Local development setup with Docker Compose.
 - `scripts/`: Quality check and utility scripts.

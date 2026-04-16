@@ -1,0 +1,12 @@
+log_level: INFO
+
+repositories:
+  - rdi: "demo"
+    inspire:
+      csw_url: "https://stable.demo.geonode.org/catalogue/csw"
+      max_records: 5
+
+api_client:
+  api_url: "http://middleware-api:8000"
+  timeout: 60.0
+  verify_ssl: false
