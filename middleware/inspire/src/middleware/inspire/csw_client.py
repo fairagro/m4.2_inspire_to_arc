@@ -13,7 +13,7 @@ from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore[import
 from middleware.harvester.errors import RecordProcessingError
 
 from .config import Config
-from .errors import SemanticError
+from .errors import CswConnectionError, SemanticError
 from .models import (
     ConformanceResult,
     Contact,
@@ -51,7 +51,7 @@ class CSWClient:
             logger.info("Connected to CSW: %s", csw_title)
         except (OSError, TimeoutError, ValueError) as e:
             logger.exception("Failed to connect to CSW at %s", self._config.csw_url)
-            raise ConnectionError(f"Failed to connect to CSW at {self._config.csw_url}: {e}") from e
+            raise CswConnectionError(f"Failed to connect to CSW at {self._config.csw_url}: {e}") from e
 
     def get_record_url(self, record_id: str) -> str:
         """
@@ -298,7 +298,7 @@ class CSWClient:
             return True
         except (OSError, TimeoutError, ValueError) as e:
             logger.error("Failed to fetch ISO records from CSW at position %d: %s", start_position, e)
-            raise ConnectionError(f"Failed to fetch ISO records from CSW: {e}") from e
+            raise CswConnectionError(f"Failed to fetch ISO records from CSW: {e}") from e
 
     def _yield_records_with_stable_ids(self, dc_ids: list[str]) -> Iterator[InspireRecord | RecordProcessingError]:
         """

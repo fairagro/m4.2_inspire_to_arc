@@ -11,5 +11,9 @@ class InspireError(HarvesterError):
     """Base exception for Inspire plugin."""
 
 
+class CswConnectionError(InspireError):
+    """Raised when a connection to the CSW endpoint fails."""
+
+
 class SemanticError(InspireError):
     """Raised when there is a semantic error in the Inspire record processing."""
