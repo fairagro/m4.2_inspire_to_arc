@@ -259,7 +259,7 @@ class CSWClient:
             kwargs: dict = {
                 "maxrecords": batch_size,
                 "startposition": start_position,
-                "esn": "full",
+                "esn": "brief",
             }
             if fes_constraints:
                 self._csw.getrecords2(constraints=fes_constraints, **kwargs)
