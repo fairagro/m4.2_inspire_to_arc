@@ -14,7 +14,7 @@ on:
         description: 'A JSON string array of components to check'
         required: false
         type: string
-        default: '["inspire_to_arc"]'
+        default: '["harvester"]'
 
 env:
   IMAGE_BASE_NAME: ${{ vars.IMAGE_BASE_NAME || 'fairagro-advanced-middleware' }}

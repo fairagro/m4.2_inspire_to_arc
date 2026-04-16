@@ -2,7 +2,7 @@
 set -e
 
 echo "🔧 Building Docker image for container structure test..."
-docker build -f docker/Dockerfile.inspire -t inspire-to-arc:test .
+docker build -f docker/Dockerfile.harvester -t inspire-to-arc:test .
 
 echo "🔍 Running Container Structure Test..."
 container-structure-test test \

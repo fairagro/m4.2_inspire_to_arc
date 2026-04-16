@@ -35,7 +35,7 @@ jobs:
     needs: validate-branch
     uses: ./.github/workflows/reusable-code-quality.yml
     with:
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
     secrets: inherit
 
   build:
@@ -43,7 +43,7 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       version_bump: ${{ inputs.version_bump }}
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
     secrets: inherit
 
   check:
@@ -52,7 +52,7 @@ jobs:
     uses: ./.github/workflows/reusable-check.yml
     with:
       version: ${{ needs.build.outputs.version }}
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
     secrets: inherit
 
   release:
@@ -61,6 +61,6 @@ jobs:
     uses: ./.github/workflows/reusable-release.yml
     with:
       version: ${{ needs.build.outputs.version }}
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
       release_type: 'final'
     secrets: inherit

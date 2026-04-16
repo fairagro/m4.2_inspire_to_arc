@@ -18,14 +18,14 @@ jobs:
     name: Code Quality
     uses: ./.github/workflows/reusable-code-quality.yml
     with:
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
     secrets: inherit
 
   build:
     name: Build
     uses: ./.github/workflows/reusable-build.yml
     with:
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
     secrets: inherit
 
   check:
@@ -34,5 +34,5 @@ jobs:
     uses: ./.github/workflows/reusable-check.yml
     with:
       version: ${{ needs.build.outputs.version }}
-      components: '["inspire_to_arc"]'
+      components: '["harvester"]'
     secrets: inherit

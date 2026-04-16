@@ -26,7 +26,7 @@ One-time initialization container that:
 
 The SQL-to-ARC converter that:
 
-- Builds from `../docker/Dockerfile.inspire`
+- Builds from `../docker/Dockerfile.harvester`
 - Waits for db-init to complete
 - Connects to PostgreSQL and Middleware API
 - Mounts encrypted secrets via sops

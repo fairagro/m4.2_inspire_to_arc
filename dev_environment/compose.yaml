@@ -3,7 +3,7 @@ services:
     image: inspire:latest
     build:
       context: ..
-      dockerfile: docker/Dockerfile.inspire
+      dockerfile: docker/Dockerfile.harvester
     environment:
       CLIENT_KEY_DATA: ${data}
     tmpfs:
