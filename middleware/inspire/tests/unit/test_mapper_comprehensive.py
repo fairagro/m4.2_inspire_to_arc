@@ -720,13 +720,13 @@ def test_measurement_type_ontology_mapping(mapper: InspireMapper) -> None:
         assert measurement_type.TermAccessionNumber == expected_tan
         assert measurement_type.TermSourceREF == expected_tsr
 
-    # Test unknown topic category (fallback)
+    # Test unknown topic category: name only, no TAN/TSR
     record = _create_minimal_record(topic_categories=["unknownTopic"])
 
     measurement_type = mapper._get_measurement_type(record)
     assert measurement_type.Name == "unknownTopic"
-    assert measurement_type.TermAccessionNumber == "http://purl.obolibrary.org/obo/NCIT_C19026"
-    assert measurement_type.TermSourceREF == "NCIT"
+    assert measurement_type.TermAccessionNumber is None
+    assert measurement_type.TermSourceREF is None
 
     # Test empty topic categories
     record = _create_minimal_record(topic_categories=[])
