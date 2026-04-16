@@ -48,12 +48,29 @@ def _chown_tree(path: Path) -> None:
         return
     uid, gid = owner
 
-    def apply_ownership(target: Path) -> None:
-        os.chown(target, uid, gid)
+    # Resolve the safe root and verify path is contained within it before
+    # performing any file operations (guards against path-injection if the
+    # caller passes unvalidated input, and satisfies CodeQL py/path-injection).
+    safe_root = Path(os.path.realpath(OUTPUT_ROOT))
+    resolved = Path(os.path.realpath(path))
+    try:
+        resolved.relative_to(safe_root)
+    except ValueError:
+        return
 
-    apply_ownership(path)
-    if path.is_dir():
-        for root, dirs, files in os.walk(path):
+    def apply_ownership(target: Path) -> None:
+        # Re-resolve each entry and re-check containment to guard against
+        # symlinks created between the walk and the chown call.
+        target_real = Path(os.path.realpath(target))
+        try:
+            target_real.relative_to(safe_root)
+        except ValueError:
+            return
+        os.chown(target_real, uid, gid)
+
+    apply_ownership(resolved)
+    if resolved.is_dir():
+        for root, dirs, files in os.walk(resolved):
             root_path = Path(root)
             apply_ownership(root_path)
             for name in dirs:
