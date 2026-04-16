@@ -17,6 +17,7 @@ from owslib.fes import PropertyIsLike  # type: ignore
 from owslib.iso import MD_Metadata  # type: ignore
 
 from middleware.harvester.errors import RecordProcessingError
+from middleware.inspire.config import Config
 from middleware.inspire.csw_client import CSWClient
 from middleware.inspire.models import InspireRecord
 
@@ -115,7 +116,7 @@ def mock_csw() -> MagicMock:
 def csw_client_with_mock(mock_csw: MagicMock) -> CSWClient:
     """Create CSW client with mocked service."""
     with patch("middleware.inspire.csw_client.CatalogueServiceWeb", return_value=mock_csw):
-        client = CSWClient("http://mock-csw.example.com/csw")
+        client = CSWClient(Config(csw_url="http://mock-csw.example.com/csw"))
         client._csw = mock_csw
         return client
 
@@ -123,7 +124,7 @@ def csw_client_with_mock(mock_csw: MagicMock) -> CSWClient:
 @pytest.mark.integration
 def test_harvester_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
     """Integration test: harvester can fetch and parse mocked CSW records."""
-    records = list(csw_client_with_mock.get_records(chunk_size=1))
+    records = list(csw_client_with_mock.get_records())
 
     assert len(records) == 1
     assert isinstance(records[0], InspireRecord)
@@ -144,7 +145,7 @@ def test_xml_request_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
       </csw:Query>
     </csw:GetRecords>"""
 
-    records = list(csw_client_with_mock.get_records(xml_request=xml_request, chunk_size=1))
+    records = list(csw_client_with_mock.get_records(xml_query=xml_request))
 
     assert len(records) == 1
     assert isinstance(records[0], InspireRecord)
@@ -160,9 +161,9 @@ def test_xml_request_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
 @pytest.mark.integration
 def test_get_records_with_fes_constraints(csw_client_with_mock: CSWClient) -> None:
     """Integration test: FES constraints are passed through and records are parsed."""
-    constraints = [PropertyIsLike("AnyText", "*wetter*")]
+    fes_constraints = [PropertyIsLike("AnyText", "*wetter*")]
 
-    records = list(csw_client_with_mock.get_records(constraints=constraints, chunk_size=1))
+    records = list(csw_client_with_mock.get_records(fes_constraints=fes_constraints))
 
     assert len(records) == 1
     assert isinstance(records[0], InspireRecord)
@@ -173,7 +174,7 @@ def test_get_records_with_fes_constraints(csw_client_with_mock: CSWClient) -> No
     assert csw_client_with_mock._csw is not None
     mock_csw = cast(MagicMock, csw_client_with_mock._csw)
     _, kwargs = mock_csw.getrecords2.call_args
-    assert kwargs["constraints"] == constraints
+    assert kwargs["constraints"] == fes_constraints
 
 
 @pytest.mark.integration
@@ -185,3 +186,52 @@ def test_record_count_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
     assert csw_client_with_mock._csw is not None
     mock_csw = cast(MagicMock, csw_client_with_mock._csw)
     assert mock_csw.getrecords2.called
+
+
+@pytest.mark.integration
+def test_cql_query_with_mocked_csw(csw_client_with_mock: CSWClient) -> None:
+    """Integration test: CQL query is passed through to getrecords2 and records are parsed."""
+    cql = "AnyText LIKE '%test%'"
+
+    records = list(csw_client_with_mock.get_records(cql_query=cql))
+
+    assert len(records) == 1
+    assert isinstance(records[0], InspireRecord)
+    assert not isinstance(records[0], RecordProcessingError)
+    assert records[0].title == "Test Dataset"
+
+    # Verify getrecords2 was called with cql= in paged mode.
+    assert csw_client_with_mock._csw is not None
+    mock_csw = cast(MagicMock, csw_client_with_mock._csw)
+    _, kwargs = mock_csw.getrecords2.call_args
+    assert kwargs.get("cql") == cql
+
+
+@pytest.mark.integration
+def test_record_count_with_cql(csw_client_with_mock: CSWClient) -> None:
+    """Integration test: get_record_count passes cql= to getrecords2."""
+    cql = "AnyText LIKE '%agriculture%'"
+
+    count = csw_client_with_mock.get_record_count(cql_query=cql)
+
+    assert count == 1
+    assert csw_client_with_mock._csw is not None
+    mock_csw = cast(MagicMock, csw_client_with_mock._csw)
+    _, kwargs = mock_csw.getrecords2.call_args
+    assert kwargs.get("cql") == cql
+
+
+@pytest.mark.integration
+def test_record_count_uses_config_cql(mock_csw: MagicMock) -> None:
+    """Integration test: get_record_count falls back to config.cql_query."""
+    cql = "AnyText LIKE '%biota%'"
+
+    with patch("middleware.inspire.csw_client.CatalogueServiceWeb", return_value=mock_csw):
+        client = CSWClient(Config(csw_url="http://mock-csw.example.com/csw", cql_query=cql))
+        client._csw = mock_csw
+
+    count = client.get_record_count()
+
+    assert count == 1
+    _, kwargs = mock_csw.getrecords2.call_args
+    assert kwargs.get("cql") == cql

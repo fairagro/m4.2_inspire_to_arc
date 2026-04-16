@@ -7,10 +7,12 @@ from typing import cast
 from urllib.parse import urlencode
 
 from owslib.catalogue.csw2 import CatalogueServiceWeb  # type: ignore[import-untyped]
+from owslib.fes import OgcExpression  # type: ignore[import-untyped]
 from owslib.iso import MD_DataIdentification, MD_Metadata  # type: ignore[import-untyped]
 
 from middleware.harvester.errors import RecordProcessingError
 
+from .config import Config
 from .errors import SemanticError
 from .models import (
     ConformanceResult,
@@ -30,29 +32,26 @@ logger = logging.getLogger(__name__)
 class CSWClient:
     """Client for harvesting metadata from a CSW endpoint."""
 
-    def __init__(self, url: str, timeout: int = 30):
-        """
-        Initialize the CSWClient with the CSW endpoint URL and optional timeout.
+    def __init__(self, config: Config) -> None:
+        """Initialize the CSWClient from a Config object.
 
         Args:
-            url: The CSW endpoint URL.
-            timeout: Timeout in seconds for the connection (default: 30).
+            config: Plugin configuration holding the CSW URL, timeout, and query options.
         """
-        self._url = url
-        self._timeout = timeout
+        self._config = config
         self._csw: CatalogueServiceWeb | None = None
 
     def connect(self) -> None:
         """Connect to the CSW service."""
         try:
-            self._csw = CatalogueServiceWeb(self._url, timeout=self._timeout)
+            self._csw = CatalogueServiceWeb(self._config.csw_url, timeout=self._config.timeout)
             csw_title = None
             if self._csw and hasattr(self._csw, "identification") and self._csw.identification:
                 csw_title = getattr(self._csw.identification, "title", None)
             logger.info("Connected to CSW: %s", csw_title)
         except (OSError, TimeoutError, ValueError) as e:
-            logger.exception("Failed to connect to CSW at %s", self._url)
-            raise ConnectionError(f"Failed to connect to CSW at {self._url}: {e}") from e
+            logger.exception("Failed to connect to CSW at %s", self._config.csw_url)
+            raise ConnectionError(f"Failed to connect to CSW at {self._config.csw_url}: {e}") from e
 
     def get_record_url(self, record_id: str) -> str:
         """
@@ -73,42 +72,105 @@ class CSWClient:
             "elementSetName": "full",
         }
         # Handle base URL that might already contain query parameters
-        base = self._url.rstrip("?")
+        base = self._config.csw_url.rstrip("?")
         sep = "&" if "?" in base else "?"
         return f"{base}{sep}{urlencode(params)}"
 
+    def _resolve_filter(
+        self,
+        cql_query: str | None,
+        xml_query: str | bytes | None,
+        fes_constraints: list[OgcExpression] | None,
+    ) -> tuple[str | bytes | None, list[OgcExpression] | None, str | None]:
+        """Resolve effective filter values, merging call-site args with Config defaults.
+
+        Config provides defaults for ``xml_query`` and ``cql_query`` only.
+        ``fes_constraints`` has no Config equivalent (OWSLib objects are not YAML-serializable).
+
+        Returns:
+            (effective_xml, effective_fes, effective_cql) — at most one is non-None.
+
+        Raises:
+            ValueError: If more than one filter type would be active simultaneously.
+        """
+        effective_xml = xml_query if xml_query is not None else self._config.xml_query
+        effective_fes = fes_constraints
+        effective_cql = cql_query if cql_query is not None else self._config.cql_query
+
+        active = [
+            ("xml_query", effective_xml),
+            ("fes_constraints", effective_fes),
+            ("cql_query", effective_cql),
+        ]
+        active_names = [name for name, val in active if val]
+        if len(active_names) > 1:
+            raise ValueError(
+                f"Conflicting query parameters: {', '.join(active_names)}. "
+                "CSW 2.0.2 allows only one filter type per request. "
+                "Provide at most one of xml_query, fes_constraints, or cql_query."
+            )
+
+        return effective_xml, effective_fes, effective_cql
+
     def get_records(
         self,
-        _query: str | None = None,
-        xml_request: str | bytes | None = None,
-        constraints: list | None = None,
-        chunk_size: int = 10,
+        cql_query: str | None = None,
+        xml_query: str | bytes | None = None,
+        fes_constraints: list[OgcExpression] | None = None,
+        chunk_size: int | None = None,
+        max_records: int | None = None,
     ) -> Iterator[InspireRecord | RecordProcessingError]:
-        """
-        Retrieve records from the CSW.
+        """Retrieve records from the CSW, yielding InspireRecord or RecordProcessingError objects.
+
+        Exactly one filter mode may be active at a time (including values inherited from Config):
+          - xml_query       — raw GetRecords XML; no pagination
+          - fes_constraints — OWSLib FES constraint objects; paginated
+          - cql_query       — CQL text query string; paginated
+          - (none)          — fetch all records; paginated
+
+        Combining more than one raises ``ValueError``, because CSW 2.0.2 allows only one
+        filter type per request and OWSLib silently ignores the lower-priority one.
+
+        Explicit arguments override the corresponding Config fields.
+        chunk_size and max_records fall back to Config values when not provided.
 
         Args:
-            query: Optional CQL query string (not fully implemented yet).
-            xml_request: Optional raw XML request string or bytes.
-            constraints: Optional list of OWSLib FES constraint objects (e.g., PropertyIsEqualTo, And).
-            chunk_size: Number of records to request per paginated batch.
+            cql_query: CQL filter string, e.g. "AnyText LIKE '%agriculture%'". Overrides
+                       config.cql_query when provided.
+            xml_query: Raw GetRecords XML body. Overrides config.xml_query when provided.
+            fes_constraints: List of OWSLib FES constraint objects (e.g. PropertyIsLike).
+            chunk_size: Records per paginated request. Overrides config.chunk_size when provided.
+            max_records: Maximum records to harvest (None = all). Overrides config.max_records.
 
-        Yields:
-            InspireRecord or RecordProcessingError objects.
+        Raises:
+            ValueError: If more than one filter mode is active simultaneously.
         """
+        effective_xml, effective_fes, effective_cql = self._resolve_filter(cql_query, xml_query, fes_constraints)
+        effective_chunk_size = chunk_size if chunk_size is not None else self._config.chunk_size
+        effective_max_records = max_records if max_records is not None else self._config.max_records
+
         if self._csw is None:
             self.connect()
         if self._csw is None:
             raise RuntimeError("CSW client is not initialized.")
 
-        if xml_request:
-            yield from self._get_records_by_xml(xml_request)
-        elif constraints:
-            yield from self._get_records_by_constraints(constraints, chunk_size)
+        if effective_xml:
+            yield from self._get_records_by_xml(effective_xml)
+        elif effective_fes:
+            yield from self._get_records_by_fes(effective_fes, effective_chunk_size, effective_max_records)
+        elif effective_cql:
+            yield from self._get_records_by_cql(effective_cql, effective_chunk_size, effective_max_records)
         else:
-            yield from self._get_records_standard(chunk_size)
+            yield from self._get_records_standard(effective_chunk_size, effective_max_records)
 
-    def _get_records_by_xml(self, xml_request: str | bytes) -> Iterator[InspireRecord | RecordProcessingError]:
+    def _get_records_by_cql(
+        self, cql_query: str, chunk_size: int, max_records: int | None
+    ) -> Iterator[InspireRecord | RecordProcessingError]:
+        """Retrieve records using a CQL text query with pagination."""
+        logger.info("Using CQL query for harvesting: %s", cql_query)
+        yield from self._get_records_paged(chunk_size, cql_query, None, max_records)
+
+    def _get_records_by_xml(self, xml_query: str | bytes) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using a raw XML request."""
         logger.info("Using raw XML request for harvesting.")
         if self._csw is None:
@@ -116,13 +178,13 @@ class CSWClient:
         if self._csw is None:
             raise RuntimeError("CSW client is not initialized.")
 
-        # If xml_request is a string with an encoding declaration,
+        # If xml_query is a string with an encoding declaration,
         # ensure it's converted to bytes to avoid lxml error:
         # "Unicode strings with encoding declaration are not supported."
-        if isinstance(xml_request, str) and ("<?xml" in xml_request and "encoding" in xml_request):
-            xml_request = xml_request.encode("utf-8")
+        if isinstance(xml_query, str) and ("<?xml" in xml_query and "encoding" in xml_query):
+            xml_query = xml_query.encode("utf-8")
 
-        self._csw.getrecords2(xml=xml_request)
+        self._csw.getrecords2(xml=xml_query)
         if self._csw.records:
             for uuid, record in self._csw.records.items():
                 if isinstance(record, MD_Metadata):
@@ -132,19 +194,25 @@ class CSWClient:
                         # We yield instead of raising to allow the generator to continue
                         yield RecordProcessingError(str(e), uuid, original_error=e)
 
-    def _get_records_by_constraints(
-        self, constraints: list, chunk_size: int
+    def _get_records_by_fes(
+        self, fes_constraints: list[OgcExpression], chunk_size: int, max_records: int | None
     ) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using FES constraints with pagination."""
         logger.info("Using FES constraints for harvesting.")
-        yield from self._get_records_paged(chunk_size, constraints=constraints)
+        yield from self._get_records_paged(chunk_size, None, fes_constraints, max_records)
 
-    def _get_records_standard(self, chunk_size: int) -> Iterator[InspireRecord | RecordProcessingError]:
+    def _get_records_standard(
+        self, chunk_size: int, max_records: int | None
+    ) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve records using standard paged harvesting."""
-        yield from self._get_records_paged(chunk_size)
+        yield from self._get_records_paged(chunk_size, None, None, max_records)
 
     def _get_records_paged(
-        self, chunk_size: int, constraints: list | None = None
+        self,
+        chunk_size: int,
+        cql_query: str | None,
+        fes_constraints: list[OgcExpression] | None,
+        max_records: int | None,
     ) -> Iterator[InspireRecord | RecordProcessingError]:
         """Retrieve all records using pagination, fetching chunk_size records per request."""
         start_position = 0
@@ -152,12 +220,12 @@ class CSWClient:
 
         while True:
             # 1. Fetch Dublin Core IDs first (as a stable reference)
-            dc_ids = self._fetch_dc_ids(chunk_size, start_position, constraints)
+            dc_ids = self._fetch_dc_ids(chunk_size, start_position, cql_query, fes_constraints)
             if not dc_ids:
                 break
 
             # 2. Fetch ISO records for the same batch
-            if not self._fetch_iso_batch(chunk_size, start_position, constraints):
+            if not self._fetch_iso_batch(chunk_size, start_position, cql_query, fes_constraints):
                 break
 
             # 3. Yield records, using DC IDs for identification
@@ -166,14 +234,21 @@ class CSWClient:
                 yield item
                 if not isinstance(item, RecordProcessingError):
                     count += 1
+
             records_yielded += count
+
+            # Check max_records limit
+            if max_records is not None and records_yielded >= max_records:
+                break
 
             start_position += len(dc_ids)
 
             if self._all_records_fetched(start_position):
                 break
 
-    def _fetch_dc_ids(self, batch_size: int, start_position: int, constraints: list | None) -> list[str]:
+    def _fetch_dc_ids(
+        self, batch_size: int, start_position: int, cql_query: str | None, fes_constraints: list[OgcExpression] | None
+    ) -> list[str]:
         """Fetch stable identifiers using Dublin Core schema."""
         if self._csw is None:
             self.connect()
@@ -181,13 +256,15 @@ class CSWClient:
             raise RuntimeError("CSW client is not initialized.")
 
         try:
-            kwargs = {
+            kwargs: dict = {
                 "maxrecords": batch_size,
                 "startposition": start_position,
                 "esn": "full",
             }
-            if constraints:
-                self._csw.getrecords2(constraints=constraints, **kwargs)
+            if fes_constraints:
+                self._csw.getrecords2(constraints=fes_constraints, **kwargs)
+            elif cql_query:
+                self._csw.getrecords2(cql=cql_query, **kwargs)
             else:
                 self._csw.getrecords2(**kwargs)
 
@@ -196,7 +273,9 @@ class CSWClient:
             logger.warning("Failed to fetch DC IDs for batch at %d: %s", start_position, e)
             return []
 
-    def _fetch_iso_batch(self, batch_size: int, start_position: int, constraints: list | None) -> bool:
+    def _fetch_iso_batch(
+        self, batch_size: int, start_position: int, cql_query: str | None, fes_constraints: list[OgcExpression] | None
+    ) -> bool:
         """Fetch a batch of records in ISO 19139 format."""
         if self._csw is None:
             self.connect()
@@ -204,14 +283,16 @@ class CSWClient:
             raise RuntimeError("CSW client is not initialized.")
 
         try:
-            kwargs = {
+            kwargs: dict = {
                 "maxrecords": batch_size,
                 "startposition": start_position,
                 "esn": "full",
                 "outputschema": "http://www.isotc211.org/2005/gmd",
             }
-            if constraints:
-                self._csw.getrecords2(constraints=constraints, **kwargs)
+            if fes_constraints:
+                self._csw.getrecords2(constraints=fes_constraints, **kwargs)
+            elif cql_query:
+                self._csw.getrecords2(cql=cql_query, **kwargs)
             else:
                 self._csw.getrecords2(**kwargs)
             return True
@@ -268,30 +349,43 @@ class CSWClient:
         matches = self._csw.results.get("matches")
         return isinstance(matches, int) and start_position >= matches
 
-    def get_record_count(self, xml_request: str | bytes | None = None, constraints: list | None = None) -> int:
-        """
-        Get the total number of matching records without fetching them.
+    def get_record_count(
+        self,
+        cql_query: str | None = None,
+        xml_query: str | bytes | None = None,
+        fes_constraints: list[OgcExpression] | None = None,
+    ) -> int:
+        """Get the total number of matching records without fetching them.
+
+        Uses the same filter resolution and conflict rules as ``get_records``:
+        config values for ``cql_query`` / ``xml_query`` are used as defaults, and
+        providing more than one filter type raises ``ValueError``.
 
         Args:
-            xml_request: Optional raw XML request string or bytes for filtering.
-            constraints: Optional list of OWSLib FES constraint objects.
+            cql_query: CQL filter string. Overrides config.cql_query when provided.
+            xml_query: Raw GetRecords XML body. Overrides config.xml_query when provided.
+            fes_constraints: List of OWSLib FES constraint objects.
+
+        Raises:
+            ValueError: If more than one filter type is active simultaneously.
 
         Returns:
             Total number of matching records.
         """
+        effective_xml, effective_fes, effective_cql = self._resolve_filter(cql_query, xml_query, fes_constraints)
+
         if self._csw is None:
             self.connect()
         if self._csw is None:
             return 0
 
-        if xml_request:
-            # Use XML request for filtered count
-            self._csw.getrecords2(xml=xml_request)
-        elif constraints:
-            # Use FES constraints for filtered count
-            self._csw.getrecords2(constraints=constraints, maxrecords=1, esn="brief")
+        if effective_xml:
+            self._csw.getrecords2(xml=effective_xml)
+        elif effective_fes:
+            self._csw.getrecords2(constraints=effective_fes, maxrecords=1, esn="brief")
+        elif effective_cql:
+            self._csw.getrecords2(cql=effective_cql, maxrecords=1, esn="brief")
         else:
-            # Get all records count using getrecords2
             self._csw.getrecords2(maxrecords=1, esn="brief")
 
         matches = self._csw.results.get("matches", 0)

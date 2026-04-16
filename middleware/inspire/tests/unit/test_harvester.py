@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from owslib.iso import MD_Metadata  # type: ignore[import-untyped]
 
+from middleware.inspire.config import Config
 from middleware.inspire.csw_client import CSWClient
 from middleware.inspire.models import InspireRecord
 
@@ -19,7 +20,7 @@ def mock_csw_cls() -> Iterator[MagicMock]:
 
 
 def test_connect(mock_csw_cls: MagicMock) -> None:
-    client = CSWClient("http://example.com/csw")
+    client = CSWClient(Config(csw_url="http://example.com/csw"))
     client.connect()
     mock_csw_cls.assert_called_with("http://example.com/csw", timeout=30)
     assert client._csw is not None
@@ -56,8 +57,8 @@ def test_get_records(mock_csw_cls: MagicMock) -> None:
     mock_csw_instance.records = {"uuid-123": mock_record}
     mock_csw_instance.results = {"matches": 1}
 
-    client = CSWClient("http://example.com/csw")
-    records = list(client.get_records(chunk_size=1))
+    client = CSWClient(Config(csw_url="http://example.com/csw"))
+    records = list(client.get_records())
 
     assert len(records) == 1
     assert isinstance(records[0], InspireRecord)
@@ -93,9 +94,9 @@ def test_get_records_xml(mock_csw_cls: MagicMock) -> None:
 
     mock_csw_instance.records = {"uuid-xml": mock_record}
 
-    client = CSWClient("http://example.com/csw")
+    client = CSWClient(Config(csw_url="http://example.com/csw"))
     xml_query = "<csw:GetRecords>...</csw:GetRecords>"
-    records = list(client.get_records(xml_request=xml_query))
+    records = list(client.get_records(xml_query=xml_query))
 
     # Verify getrecords2 was called with xml argument
     mock_csw_instance.getrecords2.assert_called_once_with(xml=xml_query)

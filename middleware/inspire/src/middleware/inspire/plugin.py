@@ -22,7 +22,7 @@ async def run_plugin(config: PluginConfig) -> AsyncGenerator[str | HarvesterErro
     inspire_config = cast(Config, config)
     # 1. Setup CSW Client
     logger.info("Connecting to CSW at %s...", inspire_config.csw_url)
-    csw_client = CSWClient(inspire_config.csw_url)
+    csw_client = CSWClient(inspire_config)
 
     # 2. Setup Mapper
     mapper = InspireMapper()
@@ -31,12 +31,8 @@ async def run_plugin(config: PluginConfig) -> AsyncGenerator[str | HarvesterErro
     count = 0
 
     try:
-        # Pass query if configured
-        records_iter = csw_client.get_records(
-            _query=inspire_config.query,
-            xml_request=inspire_config.xml_request,
-            chunk_size=inspire_config.chunk_size,
-        )
+        # All parameters are now taken from config
+        records_iter = csw_client.get_records()
 
         for item in records_iter:
             # Yield potential processing errors emitted by the fetcher upstream

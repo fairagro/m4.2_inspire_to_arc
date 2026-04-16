@@ -22,8 +22,8 @@ def test_config_loading() -> None:
 async def test_run_plugin_success() -> None:
     mock_config = MagicMock(spec=Config)
     mock_config.csw_url = "https://csw.example.com"
-    mock_config.query = None
-    mock_config.xml_request = None
+    mock_config.cql_query = None
+    mock_config.xml_query = None
     mock_config.chunk_size = 10
 
     mock_record = MagicMock(spec=InspireRecord)
@@ -55,8 +55,8 @@ async def test_run_plugin_success() -> None:
 async def test_run_plugin_with_error() -> None:
     mock_config = MagicMock(spec=Config)
     mock_config.csw_url = "https://csw.example.com"
-    mock_config.query = None
-    mock_config.xml_request = None
+    mock_config.cql_query = None
+    mock_config.xml_query = None
     mock_config.chunk_size = 10
 
     mock_error = RecordProcessingError("Failed", record_id="err-1")
