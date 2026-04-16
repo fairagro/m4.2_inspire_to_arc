@@ -643,8 +643,8 @@ class InspireMapper:
 
         if record.topic_categories:
             topic = record.topic_categories[0]
-            mapped_topic = topic_mapping.get(topic, (topic, "http://purl.obolibrary.org/obo/NCIT_C19026", "NCIT"))
-            return OntologyAnnotation(name=mapped_topic[0], tan=mapped_topic[1], tsr=mapped_topic[2])
+            name, tan, tsr = topic_mapping.get(topic, (topic, None, None))
+            return OntologyAnnotation(name=name, tan=tan, tsr=tsr)
 
         return OntologyAnnotation(
             name="Spatial Data Acquisition",
