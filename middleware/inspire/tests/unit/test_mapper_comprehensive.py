@@ -297,7 +297,7 @@ def test_map_assay_with_table(mapper: InspireMapper, sample_record: InspireRecor
     assert len(assay.Tables) == 1
     table = assay.Tables[0]
     assert table.Name == "Measurement"
-    # Headers: Input, Resource Name (Parameter), Output
+    # Headers: Input, Resource Name (Parameter), Resource URL (Comment)
     assert table.ColumnCount == 3
     assert table.RowCount == 3
 
@@ -306,13 +306,13 @@ def test_map_assay_with_table(mapper: InspireMapper, sample_record: InspireRecor
     output_col = table.Columns[2]
 
     assert param_col.Cells[0].AsTerm.Name == "Dataset Landing Page"
-    assert output_col.Cells[0].AsData.Name == "https://data.example.com/api"
+    assert output_col.Cells[0].AsFreeText == "https://data.example.com/api"
 
     assert param_col.Cells[1].AsTerm.Name == "Download"
-    assert output_col.Cells[1].AsData.Name == "https://data.example.com/download"
+    assert output_col.Cells[1].AsFreeText == "https://data.example.com/download"
 
     assert param_col.Cells[2].AsTerm.Name == "Graphic Overview"
-    assert output_col.Cells[2].AsData.Name == "https://data.example.com/preview.png"
+    assert output_col.Cells[2].AsFreeText == "https://data.example.com/preview.png"
 
     # Assay comments should now be empty (moved to table)
     assert len(assay.Comments) == 0
@@ -488,12 +488,12 @@ def test_dataset_uri_and_lineage_url_mapping(mapper: InspireMapper, sample_recor
 
     # Find Dataset Landing Page row
     param_col = assay_table.Columns[1]  # Resource Name column
-    output_col = assay_table.Columns[2]  # Output Data column
+    output_col = assay_table.Columns[2]  # Resource URL (Comment) column
 
     landing_page_rows = [i for i, cell in enumerate(param_col.Cells) if cell.AsTerm.Name == "Dataset Landing Page"]
 
     assert len(landing_page_rows) == 1
-    assert output_col.Cells[landing_page_rows[0]].AsData.Name == "https://example.com/dataset"
+    assert output_col.Cells[landing_page_rows[0]].AsFreeText == "https://example.com/dataset"
 
     # Test lineage URL in data processing protocol
     sample_record.lineage_url = "https://example.com/lineage"

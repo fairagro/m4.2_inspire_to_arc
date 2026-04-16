@@ -32,7 +32,7 @@ middleware/
 ├── harvester/             # Central orchestrator and configuration
 │   └── spec/              # Component-level architecture & design
 │       ├── harvester-orchestration/  # Orchestration loop and plugin contract
-│       └── demo-environment/         # Local demo / deployment setup
+│       └── configuration/            # Configuration file structure
 ├── inspire/        # INSPIRE to ARC harvester (Core logic)
 │   ├── spec/              # Component-level architecture & design
     │   ├── csw-harvesting/          # CSW connections and logic
@@ -85,12 +85,12 @@ Before generating or modifying code, read the relevant spec folders:
 
 - **[`spec/principles.md`](spec/principles.md)** — Authoritative project principles (start here).
 - **[`spec/error-handling/`](spec/error-handling/)** — Centralized exception hierarchy and generator yielding patterns.
+- **[`spec/demo-environment/`](spec/demo-environment/)** — One-command local demo environment (mock API + harvester).
 
 **Harvester component** (`middleware/harvester/spec/`) — orchestrator internals:
 
 - **[`middleware/harvester/spec/harvester-orchestration/`](middleware/harvester/spec/harvester-orchestration/)** — Orchestration loop and plugin `AsyncGenerator` contract.
 - **[`middleware/harvester/spec/configuration/`](middleware/harvester/spec/configuration/)** — Configuration file structure, plugin field typing, and mutual-exclusion validation.
-- **[`middleware/harvester/spec/demo-environment/`](middleware/harvester/spec/demo-environment/)** — Local demo / deployment setup.
 
 **Component-level** (`middleware/inspire/spec/`) — inspire internals:
 

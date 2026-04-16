@@ -591,16 +591,21 @@ class InspireMapper:
 
         table = ArcTable.init("Measurement")
 
-        # Create parallel lists of cells for each column
+        # Create parallel lists of cells for each column.
+        # URLs are stored as Comment free-text values, NOT as IOType.data() outputs.
+        # IOType.data() would cause arctrl's WriteAsync to treat the URL as a local
+        # file path, creating "https:/" directories on disk.
+        # CompositeHeader.comment() + CompositeCell.free_text() is the correct
+        # arctrl pair for arbitrary string values.
         num_rows = len(outputs)
         input_cells = [CompositeCell.free_text("Dataset Source")] * num_rows
         name_cells = [CompositeCell.term(OntologyAnnotation(name=name)) for name, url in outputs]
-        url_cells = [CompositeCell.create_data_from_string(url) for name, url in outputs]
+        url_cells = [CompositeCell.free_text(url) for name, url in outputs]
 
         # Add columns with their respective cell lists
         table.AddColumn(CompositeHeader.input(IOType.source()), input_cells)
         table.AddColumn(CompositeHeader.parameter(OntologyAnnotation(name="Resource Name")), name_cells)
-        table.AddColumn(CompositeHeader.output(IOType.data()), url_cells)
+        table.AddColumn(CompositeHeader.comment("Resource URL"), url_cells)
 
         return table
 
